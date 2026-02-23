@@ -27,6 +27,8 @@
     let walked = null;
     let deathTile = null;
     let deathNumber = 0;
+    let deathTiles = [];  // persists across retries within a life pool
+    let safeWalked = [];  // persists across retries within a life pool
     let onStateChange = null;
 
     var levels = null;
@@ -43,6 +45,7 @@
       playerCol = 0;
       deathTile = null;
       deathNumber = 0;
+      // Don't reset deathTiles/safeWalked — they persist until level beat or game over
       state = STATE.PLAYING;
 
       // Start and exit are always revealed
@@ -82,6 +85,7 @@
         lives--;
         deathTile = {row: nr, col: nc};
         deathNumber = num;
+        deathTiles.push({row: nr, col: nc});
         revealed[nr][nc] = true;
         state = STATE.DYING;
         notify();
@@ -100,6 +104,7 @@
       playerRow = nr;
       playerCol = nc;
       walked[nr][nc] = true;
+      safeWalked.push({row: nr, col: nc});
       revealAdjacent(nr, nc);
 
       if (nr === lvl.rows - 1 && nc === lvl.cols - 1) {
@@ -108,6 +113,8 @@
 
         setTimeout(() => {
           currentLevel++;
+          deathTiles = [];
+          safeWalked = [];
           if (currentLevel >= levels.length) {
             state = STATE.WIN;
             notify();
@@ -129,6 +136,8 @@
     function restartGame() {
       currentLevel = 0;
       lives = TOTAL_LIVES;
+      deathTiles = [];
+      safeWalked = [];
       levels = window.LiarsGarden.generateLevels();
       initLevel();
     }
@@ -142,6 +151,8 @@
       levels = window.LiarsGarden.generateLevels();
       currentLevel = 0;
       lives = TOTAL_LIVES;
+      deathTiles = [];
+      safeWalked = [];
       initLevel();
     }
 
@@ -162,6 +173,8 @@
         walked: walked,
         deathTile: deathTile,
         deathNumber: deathNumber,
+        deathTiles: deathTiles,
+        safeWalked: safeWalked,
       };
     }
 

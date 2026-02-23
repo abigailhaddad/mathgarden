@@ -266,12 +266,17 @@
       var isDeath = gs.deathTile && gs.deathTile.row === r && gs.deathTile.col === c;
       var isWalked = gs.walked && gs.walked[r][c];
       var isRevealed = gs.revealed && gs.revealed[r][c];
+      var isPastDeath = gs.deathTiles && gs.deathTiles.some(function(d) { return d.row === r && d.col === c; });
+      var isPastSafe = gs.safeWalked && gs.safeWalked.some(function(d) { return d.row === r && d.col === c; });
 
       var bg, border;
 
       if (isDeath && gs.state === STATE.DYING) {
         bg = C.death;
         border = C.deathBorder;
+      } else if (isPastDeath) {
+        bg = '#2a0808';
+        border = '#661a1a';
       } else if (isExit) {
         bg = C.exit;
         border = C.exitBorder;
@@ -281,6 +286,9 @@
       } else if (isWalked) {
         bg = C.walked;
         border = C.walkedBorder;
+      } else if (isPastSafe) {
+        bg = '#0e1e0e';
+        border = '#2a5a2a';
       } else if (isRevealed) {
         bg = C.revealed;
         border = C.revealedBorder;
@@ -318,13 +326,17 @@
       }
 
       // Number text — BRIGHT enough to read clearly
-      if (isRevealed || isStart || isExit || (isDeath && gs.state === STATE.DYING)) {
+      if (isRevealed || isStart || isExit || (isDeath && gs.state === STATE.DYING) || isPastDeath || isPastSafe) {
         var displayNum = (isStart || isExit) ? '\u2605' : String(num);
 
         if (isDeath && gs.state === STATE.DYING) {
           ctx.fillStyle = '#ee2222';
           ctx.shadowColor = '#ff0000';
           ctx.shadowBlur = 15;
+        } else if (isPastDeath) {
+          ctx.fillStyle = '#cc4444';
+          ctx.shadowColor = '#880000';
+          ctx.shadowBlur = 6;
         } else if (isWalked) {
           ctx.fillStyle = C.numberTextWalked;
           ctx.shadowColor = '#5a8a4a';
