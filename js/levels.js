@@ -110,7 +110,34 @@
     };
   }
 
-  function rulePerfectSquares() {
+  function isPerfectCube(n) {
+    if (n <= 0) return false;
+    var c = Math.round(Math.cbrt(n));
+    return c * c * c === n;
+  }
+
+  function isPowerOf2(n) {
+    return n > 0 && (n & (n - 1)) === 0;
+  }
+
+  function rulePerfectSquaresVariant() {
+    var variant = pick(['squares', 'cubes', 'pow2']);
+    if (variant === 'cubes') {
+      return {
+        name: "Perfect Cubes",
+        hint: "Some numbers have perfect cube roots...",
+        ruleText: "Perfect cubes are safe.",
+        fn: function(n) { return n === 0 || isPerfectCube(n); }
+      };
+    }
+    if (variant === 'pow2') {
+      return {
+        name: "Powers of Two",
+        hint: "Double or nothing...",
+        ruleText: "Powers of 2 are safe.",
+        fn: function(n) { return n === 0 || isPowerOf2(n); }
+      };
+    }
     return {
       name: "Perfect Squares",
       hint: "Some numbers have perfect roots...",
@@ -119,7 +146,16 @@
     };
   }
 
-  function rulePrimes() {
+  function rulePrimesVariant() {
+    var variant = pick(['primes', 'composites']);
+    if (variant === 'composites') {
+      return {
+        name: "Composite Territory",
+        hint: "The divisible ones endure...",
+        ruleText: "Composite numbers are safe.",
+        fn: function(n) { return n === 0 || (n > 1 && !isPrime(n)); }
+      };
+    }
     return {
       name: "Prime Territory",
       hint: "Indivisible numbers endure...",
@@ -372,8 +408,8 @@
       ruleOppositeEvenOdd(rule2),
       ruleDivisible(),
       ruleSmallNumbers(),
-      rulePerfectSquares(),
-      rulePrimes(),
+      rulePerfectSquaresVariant(),
+      rulePrimesVariant(),
       ruleRemainder(),
     ];
 
