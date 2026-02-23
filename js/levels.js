@@ -323,6 +323,36 @@
     // Remove any safe tiles that create alternate routes to the exit
     enforceUniquePath(grid, rows, cols, ruleFn, rng, pathSet);
 
+    // Ensure initially visible tiles (neighbors of start) have no duplicate numbers.
+    // Duplicates give away the rule, especially on the exact-number level.
+    var startNeighbors = [];
+    for (var sd = 0; sd < dirs.length; sd++) {
+      var sr = dirs[sd][0], sc = dirs[sd][1];
+      if (sr >= 0 && sr < rows && sc >= 0 && sc < cols) {
+        startNeighbors.push([sr, sc]);
+      }
+    }
+    var seen = {};
+    for (var si = 0; si < startNeighbors.length; si++) {
+      var snr = startNeighbors[si][0], snc = startNeighbors[si][1];
+      if (snr === rows - 1 && snc === cols - 1) continue;
+      var val = grid[snr][snc];
+      if (seen[val]) {
+        // Duplicate — replace with a different number of the same safety
+        var isSafe = ruleFn(val);
+        for (var attempt = 0; attempt < 50; attempt++) {
+          var replacement = isSafe ? safeNumber(ruleFn, rng) : unsafeNumber(ruleFn, rng);
+          if (!seen[replacement]) {
+            grid[snr][snc] = replacement;
+            seen[replacement] = true;
+            break;
+          }
+        }
+      } else {
+        seen[val] = true;
+      }
+    }
+
     return grid;
   }
 
