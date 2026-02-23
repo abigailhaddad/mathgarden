@@ -1,32 +1,40 @@
-# Project: Liar's Garden
+# Project: Liar's Garden v2
 
 ## What This Is
-
-A browser-based puzzle game where rules are learned through play — no instructions — and the game progressively lies about the rules it taught you. Open `index.html` in a browser to play. No build step, no dependencies — just static HTML/CSS/JS with canvas rendering.
+A browser-based number puzzle game. Grid of hidden numbers, secret math rules, limited lives. Open `index.html` to play. No build step, no dependencies — plain HTML/CSS/JS with canvas rendering.
 
 ## Architecture
 
-- **`index.html`** — Entry point. Loads all JS/CSS.
-- **`style.css`** — UI chrome, title screen, overlays. Dark forest aesthetic.
-- **`js/engine.js`** — Game loop, state machine, input handling, move resolution.
-- **`js/rules.js`** — Default tile behaviors + per-level override merging + disguise system.
-- **`js/levels.js`** — All 18 level definitions (grids, rule overrides, themes, disguises).
-- **`js/sprites.js`** — Procedural canvas drawing for all tile types and the player character.
-- **`js/renderer.js`** — Canvas rendering loop, theme palettes, tile drawing orchestration.
+- **`index.html`** — Entry point. Loads all JS, sets up input handlers and animation loop.
+- **`style.css`** — Minimal styling. Dark background, fullscreen canvas, no scroll.
+- **`js/levels.js`** — 8 level definitions with deterministic grid generation, rule functions, and solvability verification.
+- **`js/engine.js`** — Game state machine: movement, tile reveals, death, lives, level progression.
+- **`js/renderer.js`** — Canvas rendering: tiles, numbers, player (roly-poly bug), HUD, overlays.
 
-## How the Lying Works
+## Core Mechanic
+- Grid tiles hide numbers (1-100). Numbers reveal when player is 4-directionally adjacent.
+- Each level has a secret rule defining which numbers are safe to step on.
+- Unsafe step = death = lose 1 of 5 total lives. 0 lives = game over, restart from level 1.
+- Beat a level = rule revealed, advance to next.
 
-Default tile behaviors are in `rules.js` (`DEFAULT_RULES`). Each level in `levels.js` can specify `ruleOverrides` that change any tile's behavior. Same visual, different rules. The `disguise` system makes a tile at a specific position render as one type but behave as another.
+## 8 Levels
+1. The Number Seven (n === 7)
+2. Even Ground (even numbers)
+3. Odd One Out (odd numbers)
+4. By Fives (multiples of 5)
+5. Small World (n <= 20)
+6. Perfect Squares (1, 4, 9, 16, ...)
+7. Prime Territory (primes)
+8. The Remainder (n % 7 <= 1)
 
-## Level Format
-
-Grids use single-letter codes: G=ground, T=thorn, F=flower, M=mushroom, R=rock, S=seed, E=exit, D=dark_ground, B=biolume, W=wall, P=player start.
+## Controls
+- Arrow keys / WASD: move
+- R: restart level (free, no life cost) or restart game (on game over/win)
+- Touch swipe: mobile support
 
 ## Rules for Claude
-
-- **Commit changes when you make them.**
+- Commit changes when you make them.
 - No build tools, no frameworks, no npm. Plain static files only.
-- All visuals are canvas-drawn — no image assets.
-- Keep levels solvable. Every level must have at least one path from P to E.
-- When adding levels, maintain the lying progression: early levels teach truth, later levels break it.
-- Preserve the Pacific Northwest weird forest aesthetic.
+- Keep the dark forest visual aesthetic.
+- Grids must be deterministic (seeded RNG) and solvable (BFS-verified at load).
+- Start tile (0,0) and exit tile (bottom-right) always have number 0, which is always safe.

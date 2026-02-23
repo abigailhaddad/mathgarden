@@ -1,122 +1,282 @@
-// Canvas rendering, theme palettes, camera
+// Liar's Garden v2 — Canvas renderer
+// Draws tiles, numbers, player, HUD, overlays
 
-const THEMES = {
-  dayforest: {
-    bg: '#0a0e0a',
-    groundTint: null, // use default sprite colors
-  },
-  duskforest: {
-    bg: '#0a080e',
-    groundTint: '#241e2a',
-  },
-  deepforest: {
-    bg: '#060a06',
-    groundTint: '#1a2018',
-  },
-  biolume: {
-    bg: '#040808',
-    groundTint: '#0e1a16',
-  },
-  alien: {
-    bg: '#0a0408',
-    groundTint: '#1a101e',
-  },
-};
+(function() {
+  'use strict';
 
-const Renderer = {
-  canvas: null,
-  ctx: null,
-  tileSize: 64,
-  frame: 0,
-  animId: null,
+  const STATE = window.LiarsGarden.STATE;
 
-  init(canvas) {
-    this.canvas = canvas;
-    this.ctx = canvas.getContext('2d');
-    this.frame = 0;
-  },
+  // Colors
+  const C = {
+    bg: '#1a2a1a',
+    hidden: '#2a3a2a',
+    hiddenBorder: '#3a4a3a',
+    revealed: '#3a4a3a',
+    revealedBorder: '#5a6a5a',
+    walked: '#2a5a2a',
+    walkedBorder: '#4a7a4a',
+    death: '#8a2a2a',
+    deathBorder: '#cc3333',
+    exit: '#8a7a2a',
+    exitBorder: '#ccbb33',
+    exitShimmer: '#ffee88',
+    start: '#3a5a5a',
+    startBorder: '#5a8a8a',
+    player: '#7a6a5a',
+    playerBody: '#9a8a7a',
+    playerShell: '#6a5a4a',
+    numberText: '#e0e0d0',
+    hudBg: '#0a1a0a',
+    hudText: '#c0d0b0',
+    lifeOn: '#cc4444',
+    lifeOff: '#4a3a3a',
+    overlay: 'rgba(0, 0, 0, 0.75)',
+    overlayText: '#e0e0d0',
+    deathText: '#ff6666',
+    ruleText: '#ffcc44',
+  };
 
-  resize(cols, rows) {
-    // Fit to screen
-    const maxW = window.innerWidth - 20;
-    const maxH = window.innerHeight - 100;
-    const tileW = Math.floor(maxW / cols);
-    const tileH = Math.floor(maxH / rows);
-    this.tileSize = Math.min(tileW, tileH, 72);
-    this.tileSize = Math.max(this.tileSize, 40); // minimum size
-    this.canvas.width = cols * this.tileSize;
-    this.canvas.height = rows * this.tileSize;
-  },
+  function createRenderer(canvas) {
+    const ctx = canvas.getContext('2d');
+    let tileSize = 0;
+    let gridOffsetX = 0;
+    let gridOffsetY = 0;
+    const HUD_HEIGHT = 48;
 
-  // Main render called each animation frame
-  render(state) {
-    const { grid, playerRow, playerCol, playerFacing, theme, disguises, rules,
-            collectedSeeds, totalSeeds, exitLocked, dying } = state;
-    const ctx = this.ctx;
-    const ts = this.tileSize;
-    const themeData = THEMES[theme] || THEMES.dayforest;
+    function resize(gameState) {
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      if (gameState && gameState.levelData) {
+        computeLayout(gameState, rect.width, rect.height);
+      }
+    }
 
-    // Background
-    ctx.fillStyle = themeData.bg;
-    ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    function computeLayout(gs, canvasW, canvasH) {
+      const lvl = gs.levelData;
+      const availW = canvasW - 20;
+      const availH = canvasH - HUD_HEIGHT - 20;
+      tileSize = Math.floor(Math.min(availW / lvl.cols, availH / lvl.rows));
+      tileSize = Math.min(tileSize, 80);
+      gridOffsetX = Math.floor((canvasW - tileSize * lvl.cols) / 2);
+      gridOffsetY = HUD_HEIGHT + Math.floor((canvasH - HUD_HEIGHT - tileSize * lvl.rows) / 2);
+    }
 
-    const rows = grid.length;
-    const cols = grid[0].length;
+    function render(gs) {
+      const rect = canvas.getBoundingClientRect();
+      computeLayout(gs, rect.width, rect.height);
 
-    // Draw tiles
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        const x = c * ts;
-        const y = r * ts;
-        const positionSeed = r * 100 + c; // deterministic per position
+      ctx.fillStyle = C.bg;
+      ctx.fillRect(0, 0, rect.width, rect.height);
 
-        // Get effective tile (accounting for disguises)
-        const eff = getEffectiveTile(grid, r, c, disguises);
-        const visualType = eff.visual;
+      drawHUD(gs, rect.width);
+      drawGrid(gs);
+      drawPlayer(gs);
 
-        // Check if this seed was already collected
-        if (visualType === 'seed' && collectedSeeds && collectedSeeds.has(r + ',' + c)) {
-          Sprites.draw('ground', ctx, x, y, ts, this.frame, positionSeed);
-          continue;
-        }
+      if (gs.state === STATE.DYING) {
+        drawDeathOverlay(gs, rect.width, rect.height);
+      } else if (gs.state === STATE.RULE_REVEAL) {
+        drawRuleReveal(gs, rect.width, rect.height);
+      } else if (gs.state === STATE.GAME_OVER) {
+        drawGameOver(rect.width, rect.height);
+      } else if (gs.state === STATE.WIN) {
+        drawWin(rect.width, rect.height);
+      }
+    }
 
-        // Draw the visual tile type
-        const extra = {};
-        if (visualType === 'exit') extra.locked = exitLocked;
-        Sprites.draw(visualType, ctx, x, y, ts, this.frame, positionSeed, extra);
+    function drawHUD(gs, canvasW) {
+      ctx.fillStyle = C.hudBg;
+      ctx.fillRect(0, 0, canvasW, HUD_HEIGHT);
 
-        // Theme tint overlay
-        if (themeData.groundTint && visualType !== 'wall') {
-          ctx.fillStyle = themeData.groundTint;
-          ctx.globalAlpha = 0.15;
-          ctx.fillRect(x, y, ts, ts);
-          ctx.globalAlpha = 1;
+      ctx.fillStyle = C.hudText;
+      ctx.font = '16px monospace';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(gs.levelData.name, 12, HUD_HEIGHT / 2);
+
+      // Lives as dots
+      const dotR = 8;
+      const dotSpacing = 24;
+      const livesWidth = gs.totalLives * dotSpacing;
+      const livesStartX = (canvasW - livesWidth) / 2 + dotR;
+      for (let i = 0; i < gs.totalLives; i++) {
+        ctx.beginPath();
+        ctx.arc(livesStartX + i * dotSpacing, HUD_HEIGHT / 2, dotR, 0, Math.PI * 2);
+        ctx.fillStyle = i < gs.lives ? C.lifeOn : C.lifeOff;
+        ctx.fill();
+      }
+
+      ctx.fillStyle = C.hudText;
+      ctx.textAlign = 'right';
+      ctx.fillText('Level ' + (gs.currentLevel + 1) + '/8', canvasW - 12, HUD_HEIGHT / 2);
+    }
+
+    function drawGrid(gs) {
+      const lvl = gs.levelData;
+      for (let r = 0; r < lvl.rows; r++) {
+        for (let c = 0; c < lvl.cols; c++) {
+          drawTile(gs, r, c);
         }
       }
     }
 
-    // Draw player
-    if (!dying) {
-      const px = playerCol * ts;
-      const py = playerRow * ts;
-      Sprites.drawPlayer(ctx, px, py, ts, this.frame, playerFacing);
+    function drawTile(gs, r, c) {
+      const lvl = gs.levelData;
+      const x = gridOffsetX + c * tileSize;
+      const y = gridOffsetY + r * tileSize;
+      const num = lvl.grid[r][c];
+      const isStart = r === 0 && c === 0;
+      const isExit = r === lvl.rows - 1 && c === lvl.cols - 1;
+      const isDeath = gs.deathTile && gs.deathTile.row === r && gs.deathTile.col === c;
+      const isWalked = gs.walked && gs.walked[r][c];
+      const isRevealed = gs.revealed && gs.revealed[r][c];
+
+      let bg, border;
+
+      if (isDeath && gs.state === STATE.DYING) {
+        bg = C.death;
+        border = C.deathBorder;
+      } else if (isExit) {
+        bg = C.exit;
+        border = C.exitBorder;
+      } else if (isStart) {
+        bg = C.start;
+        border = C.startBorder;
+      } else if (isWalked) {
+        bg = C.walked;
+        border = C.walkedBorder;
+      } else if (isRevealed) {
+        bg = C.revealed;
+        border = C.revealedBorder;
+      } else {
+        bg = C.hidden;
+        border = C.hiddenBorder;
+      }
+
+      const pad = 2;
+      ctx.fillStyle = bg;
+      ctx.fillRect(x + pad, y + pad, tileSize - pad * 2, tileSize - pad * 2);
+      ctx.strokeStyle = border;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x + pad, y + pad, tileSize - pad * 2, tileSize - pad * 2);
+
+      // Exit shimmer
+      if (isExit) {
+        ctx.fillStyle = C.exitShimmer;
+        ctx.globalAlpha = 0.3 + 0.15 * Math.sin(Date.now() / 300);
+        ctx.fillRect(x + pad + 2, y + pad + 2, tileSize - pad * 2 - 4, tileSize - pad * 2 - 4);
+        ctx.globalAlpha = 1;
+      }
+
+      // Number text
+      if (isRevealed || isStart || isExit || (isDeath && gs.state === STATE.DYING)) {
+        const displayNum = (isStart || isExit) ? '\u2605' : String(num);
+        ctx.fillStyle = (isDeath && gs.state === STATE.DYING) ? '#ff4444' : C.numberText;
+        ctx.font = 'bold ' + Math.floor(tileSize * 0.4) + 'px monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(displayNum, x + tileSize / 2, y + tileSize / 2);
+      }
     }
 
-    this.frame++;
-  },
+    function drawPlayer(gs) {
+      if (gs.state === STATE.DYING || gs.state === STATE.GAME_OVER || gs.state === STATE.WIN) return;
 
-  startLoop(getState) {
-    const loop = () => {
-      this.render(getState());
-      this.animId = requestAnimationFrame(loop);
+      const x = gridOffsetX + gs.playerCol * tileSize + tileSize / 2;
+      const y = gridOffsetY + gs.playerRow * tileSize + tileSize / 2;
+      const r = tileSize * 0.3;
+
+      // Roly-poly body
+      ctx.beginPath();
+      ctx.ellipse(x, y, r, r * 0.7, 0, 0, Math.PI * 2);
+      ctx.fillStyle = C.playerBody;
+      ctx.fill();
+      ctx.strokeStyle = C.playerShell;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Shell segments
+      ctx.beginPath();
+      ctx.moveTo(x - r * 0.3, y - r * 0.5);
+      ctx.lineTo(x - r * 0.3, y + r * 0.5);
+      ctx.moveTo(x + r * 0.3, y - r * 0.5);
+      ctx.lineTo(x + r * 0.3, y + r * 0.5);
+      ctx.strokeStyle = C.playerShell;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // Eyes
+      ctx.fillStyle = '#222';
+      ctx.beginPath();
+      ctx.arc(x - r * 0.2, y - r * 0.15, 2, 0, Math.PI * 2);
+      ctx.arc(x + r * 0.2, y - r * 0.15, 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function drawDeathOverlay(gs, w, h) {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+      ctx.fillRect(0, 0, w, h);
+
+      ctx.fillStyle = C.deathText;
+      ctx.font = 'bold 24px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('That was a ' + gs.deathNumber, w / 2, h / 2);
+    }
+
+    function drawRuleReveal(gs, w, h) {
+      ctx.fillStyle = C.overlay;
+      ctx.fillRect(0, 0, w, h);
+
+      ctx.fillStyle = C.ruleText;
+      ctx.font = 'bold 20px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('Level Complete!', w / 2, h / 2 - 30);
+
+      ctx.fillStyle = C.overlayText;
+      ctx.font = '18px monospace';
+      ctx.fillText('The rule was: ' + gs.levelData.ruleText, w / 2, h / 2 + 10);
+    }
+
+    function drawGameOver(w, h) {
+      ctx.fillStyle = C.overlay;
+      ctx.fillRect(0, 0, w, h);
+
+      ctx.fillStyle = C.deathText;
+      ctx.font = 'bold 32px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('GAME OVER', w / 2, h / 2 - 30);
+
+      ctx.fillStyle = C.overlayText;
+      ctx.font = '18px monospace';
+      ctx.fillText('Press R or tap to restart', w / 2, h / 2 + 20);
+    }
+
+    function drawWin(w, h) {
+      ctx.fillStyle = C.overlay;
+      ctx.fillRect(0, 0, w, h);
+
+      ctx.fillStyle = C.ruleText;
+      ctx.font = 'bold 28px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('You escaped the garden!', w / 2, h / 2 - 20);
+
+      ctx.fillStyle = C.overlayText;
+      ctx.font = '16px monospace';
+      ctx.fillText('All 8 levels complete. Press R to play again.', w / 2, h / 2 + 20);
+    }
+
+    return {
+      resize: resize,
+      render: render,
     };
-    loop();
-  },
-
-  stopLoop() {
-    if (this.animId) {
-      cancelAnimationFrame(this.animId);
-      this.animId = null;
-    }
   }
-};
+
+  window.LiarsGarden = window.LiarsGarden || {};
+  window.LiarsGarden.createRenderer = createRenderer;
+})();

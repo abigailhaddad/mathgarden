@@ -7,37 +7,96 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div id="title-screen">
-    <div id="title-content">
-      <h1>Liar's Garden</h1>
-      <p class="subtitle">A forest that teaches you its rules&hellip;<br>then breaks them.</p>
-      <button id="start-btn">Enter the Garden</button>
-      <p class="hint">Arrow keys / WASD to move &middot; R to restart</p>
-    </div>
-  </div>
+  <canvas id="game"></canvas>
 
-  <div id="game-container" style="display:none;">
-    <div id="hud">
-      <span id="level-name"></span>
-      <span id="death-counter"></span>
-      <span id="seed-counter" style="display:none;"></span>
-    </div>
-    <canvas id="game-canvas"></canvas>
-    <div id="level-complete" style="display:none;">
-      <p id="complete-text"></p>
-    </div>
-  </div>
-
-  <div id="level-select" style="display:none;">
-    <h2>Level Select</h2>
-    <div id="level-grid"></div>
-    <button id="back-btn">Back</button>
-  </div>
-
-  <script src="js/rules.js"></script>
   <script src="js/levels.js"></script>
-  <script src="js/sprites.js"></script>
-  <script src="js/renderer.js"></script>
   <script src="js/engine.js"></script>
+  <script src="js/renderer.js"></script>
+  <script>
+    (function() {
+      'use strict';
+
+      var canvas = document.getElementById('game');
+      var engine = LiarsGarden.createEngine();
+      var renderer = LiarsGarden.createRenderer(canvas);
+      var STATE = LiarsGarden.STATE;
+
+      function fitCanvas() {
+        canvas.style.width = window.innerWidth + 'px';
+        canvas.style.height = window.innerHeight + 'px';
+        renderer.resize(engine.getState());
+        renderer.render(engine.getState());
+      }
+      window.addEventListener('resize', fitCanvas);
+
+      engine.onStateChange = function(gs) {
+        renderer.render(gs);
+      };
+
+      // Keyboard
+      document.addEventListener('keydown', function(e) {
+        var gs = engine.getState();
+
+        if (e.key === 'r' || e.key === 'R') {
+          if (gs.state === STATE.GAME_OVER || gs.state === STATE.WIN) {
+            engine.restartGame();
+          } else {
+            engine.restartLevel();
+          }
+          return;
+        }
+
+        var keyMap = {
+          ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1],
+          w: [-1, 0], s: [1, 0], a: [0, -1], d: [0, 1],
+          W: [-1, 0], S: [1, 0], A: [0, -1], D: [0, 1],
+        };
+
+        if (keyMap[e.key]) {
+          e.preventDefault();
+          var dir = keyMap[e.key];
+          engine.move(dir[0], dir[1]);
+        }
+      });
+
+      // Touch swipe
+      var touchStartX = 0, touchStartY = 0;
+      canvas.addEventListener('touchstart', function(e) {
+        var gs = engine.getState();
+        if (gs.state === STATE.GAME_OVER || gs.state === STATE.WIN) {
+          engine.restartGame();
+          return;
+        }
+        var t = e.touches[0];
+        touchStartX = t.clientX;
+        touchStartY = t.clientY;
+      }, {passive: true});
+
+      canvas.addEventListener('touchend', function(e) {
+        var t = e.changedTouches[0];
+        var dx = t.clientX - touchStartX;
+        var dy = t.clientY - touchStartY;
+        var threshold = 30;
+
+        if (Math.abs(dx) < threshold && Math.abs(dy) < threshold) return;
+
+        if (Math.abs(dx) > Math.abs(dy)) {
+          engine.move(0, dx > 0 ? 1 : -1);
+        } else {
+          engine.move(dy > 0 ? 1 : -1, 0);
+        }
+      }, {passive: true});
+
+      // Animation loop for shimmer
+      function animate() {
+        renderer.render(engine.getState());
+        requestAnimationFrame(animate);
+      }
+
+      engine.initLevel();
+      fitCanvas();
+      animate();
+    })();
+  </script>
 </body>
 </html>
