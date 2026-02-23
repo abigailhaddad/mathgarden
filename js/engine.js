@@ -28,8 +28,10 @@
     let deathNumber = 0;
     let onStateChange = null;
 
+    var levels = null;
+
     function level() {
-      return window.LiarsGarden.levels[currentLevel];
+      return levels[currentLevel];
     }
 
     function initLevel() {
@@ -105,7 +107,7 @@
 
         setTimeout(() => {
           currentLevel++;
-          if (currentLevel >= window.LiarsGarden.levels.length) {
+          if (currentLevel >= levels.length) {
             state = STATE.WIN;
             notify();
           } else {
@@ -124,6 +126,14 @@
     }
 
     function restartGame() {
+      currentLevel = 0;
+      lives = TOTAL_LIVES;
+      levels = window.LiarsGarden.generateLevels();
+      initLevel();
+    }
+
+    function startGame() {
+      levels = window.LiarsGarden.generateLevels();
       currentLevel = 0;
       lives = TOTAL_LIVES;
       initLevel();
@@ -150,6 +160,7 @@
     }
 
     return {
+      startGame: startGame,
       initLevel: initLevel,
       move: move,
       restartLevel: restartLevel,
