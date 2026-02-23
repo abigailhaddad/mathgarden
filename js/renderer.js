@@ -121,9 +121,9 @@
         var nx = (Math.sin(i * 3.7 + time * 0.3) * 0.5 + 0.5) * w;
         var ny = (Math.cos(i * 2.3 + time * 0.2) * 0.5 + 0.5) * h;
         var num = ((i * 7 + 3) % 100) + 1;
-        var alpha = 0.04 + 0.03 * Math.sin(time * 0.5 + i * 1.1);
+        var alpha = 0.08 + 0.05 * Math.sin(time * 0.5 + i * 1.1);
         ctx.globalAlpha = alpha;
-        ctx.fillStyle = '#4a6a3a';
+        ctx.fillStyle = '#6a8a5a';
         ctx.fillText(String(num), nx, ny);
       }
       ctx.globalAlpha = 1;
@@ -139,18 +139,18 @@
       ctx.shadowBlur = 0;
       ctx.globalAlpha = 1;
 
-      // Subtitle
-      ctx.fillStyle = C.hintText;
+      // Subtitle — bright enough to read
+      ctx.fillStyle = '#a0b090';
       ctx.font = '14px monospace';
-      ctx.globalAlpha = 0.5 + 0.15 * Math.sin(time * 2);
+      ctx.globalAlpha = 0.8 + 0.1 * Math.sin(time * 2);
       ctx.fillText('Every number hides a secret.', w / 2, h / 2 + 10);
       ctx.fillText('Step wrong and you die.', w / 2, h / 2 + 30);
       ctx.globalAlpha = 1;
 
-      // Prompt
-      var promptAlpha = 0.3 + 0.3 * Math.sin(time * 3);
+      // Prompt — pulsing but readable
+      var promptAlpha = 0.5 + 0.4 * Math.sin(time * 3);
       ctx.globalAlpha = promptAlpha;
-      ctx.fillStyle = C.hudTextDim;
+      ctx.fillStyle = '#8a9a7a';
       ctx.font = '12px monospace';
       ctx.fillText('Press any key to begin', w / 2, h / 2 + 80);
       ctx.globalAlpha = 1;
