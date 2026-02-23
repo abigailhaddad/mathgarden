@@ -1,4 +1,4 @@
-# Project: Liar's Garden v2
+# Project: Proof by Elimination v2
 
 ## What This Is
 A browser-based number puzzle game. Grid of hidden numbers, secret math rules, limited lives. Open `index.html` to play. No build step, no dependencies — plain HTML/CSS/JS with canvas rendering.

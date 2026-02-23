@@ -9,6 +9,7 @@
   const RULE_REVEAL_DELAY = 2000;
 
   const STATE = {
+    TITLE: 'title',
     PLAYING: 'playing',
     DYING: 'dying',
     RULE_REVEAL: 'rule_reveal',
@@ -21,7 +22,7 @@
     let lives = TOTAL_LIVES;
     let playerRow = 0;
     let playerCol = 0;
-    let state = STATE.PLAYING;
+    let state = STATE.TITLE;
     let revealed = null;
     let walked = null;
     let deathTile = null;
@@ -132,6 +133,11 @@
       initLevel();
     }
 
+    function showTitle() {
+      state = STATE.TITLE;
+      notify();
+    }
+
     function startGame() {
       levels = window.LiarsGarden.generateLevels();
       currentLevel = 0;
@@ -147,7 +153,7 @@
       return {
         state: state,
         currentLevel: currentLevel,
-        levelData: level(),
+        levelData: state === STATE.TITLE ? null : level(),
         lives: lives,
         totalLives: TOTAL_LIVES,
         playerRow: playerRow,
@@ -160,6 +166,7 @@
     }
 
     return {
+      showTitle: showTitle,
       startGame: startGame,
       initLevel: initLevel,
       move: move,

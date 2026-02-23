@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Liar's Garden</title>
+  <title>Proof by Elimination</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -37,6 +37,12 @@
       document.addEventListener('keydown', function(e) {
         var gs = engine.getState();
 
+        // Title screen: any key starts game
+        if (gs.state === STATE.TITLE) {
+          engine.startGame();
+          return;
+        }
+
         if (e.key === 'r' || e.key === 'R') {
           if (gs.state === STATE.GAME_OVER || gs.state === STATE.WIN) {
             engine.restartGame();
@@ -59,10 +65,14 @@
         }
       });
 
-      // Touch swipe
+      // Touch
       var touchStartX = 0, touchStartY = 0;
       canvas.addEventListener('touchstart', function(e) {
         var gs = engine.getState();
+        if (gs.state === STATE.TITLE) {
+          engine.startGame();
+          return;
+        }
         if (gs.state === STATE.GAME_OVER || gs.state === STATE.WIN) {
           engine.restartGame();
           return;
@@ -73,6 +83,8 @@
       }, {passive: true});
 
       canvas.addEventListener('touchend', function(e) {
+        var gs = engine.getState();
+        if (gs.state === STATE.TITLE || gs.state === STATE.GAME_OVER || gs.state === STATE.WIN) return;
         var t = e.changedTouches[0];
         var dx = t.clientX - touchStartX;
         var dy = t.clientY - touchStartY;
@@ -87,13 +99,14 @@
         }
       }, {passive: true});
 
-      // Animation loop for shimmer
+      // Animation loop
       function animate() {
         renderer.render(engine.getState());
         requestAnimationFrame(animate);
       }
 
-      engine.startGame();
+      // Start on title screen
+      engine.showTitle();
       fitCanvas();
       animate();
     })();
