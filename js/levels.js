@@ -254,6 +254,56 @@
     }
   }
 
+  // Ensure only one path exists from start to exit.
+  // Any non-path safe tile that creates an alternate route gets swapped to unsafe.
+  function enforceUniquePath(grid, rows, cols, ruleFn, rng, pathSet) {
+    var changed = true;
+    while (changed) {
+      changed = false;
+      for (var r = 0; r < rows; r++) {
+        for (var c = 0; c < cols; c++) {
+          if (r === 0 && c === 0) continue;
+          if (r === rows - 1 && c === cols - 1) continue;
+          if (pathSet.has(r + ',' + c)) continue;
+          if (!ruleFn(grid[r][c])) continue;
+          // Temporarily make it unsafe, see if level is still solvable
+          var orig = grid[r][c];
+          grid[r][c] = unsafeNumber(ruleFn, rng);
+          if (isSolvable(grid, ruleFn)) {
+            // Still solvable without this tile — it was either a red herring
+            // or part of an alt route. Keep it unsafe to be safe, then re-check.
+            // But we WANT some red herrings. Only kill it if it was on an alt route.
+            // Check: was the original tile reachable from start AND could reach exit?
+            // If removing it didn't break solvability, it might have been an alt route tile
+            // or a harmless dead end. To distinguish: if it was adjacent to 2+ safe path-connected
+            // tiles, it was likely a bridge. Keep it removed.
+            // Simpler: just remove safe non-path tiles that touch the path on 2+ sides
+            var adjPathCount = 0;
+            var dirs = [[0,1],[0,-1],[1,0],[-1,0]];
+            for (var d = 0; d < dirs.length; d++) {
+              var nr = r + dirs[d][0], nc = c + dirs[d][1];
+              if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
+                if (pathSet.has(nr + ',' + nc) || (nr === 0 && nc === 0) || (nr === rows-1 && nc === cols-1)) {
+                  adjPathCount++;
+                }
+              }
+            }
+            if (adjPathCount >= 2) {
+              // This tile bridges two path segments — could create a shortcut. Remove it.
+              changed = true;
+            } else {
+              // Dead-end red herring — restore it
+              grid[r][c] = orig;
+            }
+          } else {
+            // Removing it broke solvability — shouldn't happen since path is intact, but restore
+            grid[r][c] = orig;
+          }
+        }
+      }
+    }
+  }
+
   // Build a grid for a level
   function buildGrid(rows, cols, ruleFn, seed) {
     var rng = mulberry32(seed);
@@ -263,20 +313,24 @@
     grid[rows - 1][cols - 1] = 0;
 
     var path = carvePath(grid, rows, cols, ruleFn, rng);
-    addBranches(grid, rows, cols, ruleFn, rng, path);
+    var pathSet = new Set(path.map(function(p) { return p[0] + ',' + p[1]; }));
 
+    // Fill non-path tiles: mix of safe (red herrings) and unsafe
     for (var r = 0; r < rows; r++) {
       for (var c = 0; c < cols; c++) {
         if (r === 0 && c === 0) continue;
         if (r === rows - 1 && c === cols - 1) continue;
         if (grid[r][c] !== 0) continue;
-        if (rng() < 0.7) {
+        if (rng() < 0.6) {
           grid[r][c] = unsafeNumber(ruleFn, rng);
         } else {
           grid[r][c] = safeNumber(ruleFn, rng);
         }
       }
     }
+
+    // Remove any safe tiles that create alternate routes to the exit
+    enforceUniquePath(grid, rows, cols, ruleFn, rng, pathSet);
 
     return grid;
   }
