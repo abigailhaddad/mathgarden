@@ -13,8 +13,8 @@
     hiddenBorder: '#1a1a1a',
     revealed: '#181816',
     revealedBorder: '#3a3a28',
-    walked: '#0e1e0e',
-    walkedBorder: '#2a4a2a',
+    walked: '#1a3a1a',
+    walkedBorder: '#3a7a3a',
     death: '#3a0000',
     deathBorder: '#880000',
     exit: '#1a1800',
@@ -287,8 +287,8 @@
         bg = C.walked;
         border = C.walkedBorder;
       } else if (isPastSafe) {
-        bg = '#0e1e0e';
-        border = '#2a5a2a';
+        bg = '#1a3a1a';
+        border = '#3a7a3a';
       } else if (isRevealed) {
         bg = C.revealed;
         border = C.revealedBorder;
