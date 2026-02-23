@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Liar's Garden</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="title-screen">
+    <div id="title-content">
+      <h1>Liar's Garden</h1>
+      <p class="subtitle">A forest that teaches you its rules&hellip;<br>then breaks them.</p>
+      <button id="start-btn">Enter the Garden</button>
+      <p class="hint">Arrow keys / WASD to move &middot; R to restart</p>
+    </div>
+  </div>
+
+  <div id="game-container" style="display:none;">
+    <div id="hud">
+      <span id="level-name"></span>
+      <span id="death-counter"></span>
+      <span id="seed-counter" style="display:none;"></span>
+    </div>
+    <canvas id="game-canvas"></canvas>
+    <div id="level-complete" style="display:none;">
+      <p id="complete-text"></p>
+    </div>
+  </div>
+
+  <div id="level-select" style="display:none;">
+    <h2>Level Select</h2>
+    <div id="level-grid"></div>
+    <button id="back-btn">Back</button>
+  </div>
+
+  <script src="js/rules.js"></script>
+  <script src="js/levels.js"></script>
+  <script src="js/sprites.js"></script>
+  <script src="js/renderer.js"></script>
+  <script src="js/engine.js"></script>
+</body>
+</html>
