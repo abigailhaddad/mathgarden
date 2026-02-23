@@ -228,32 +228,6 @@
     return path;
   }
 
-  // Add some branch paths (some safe, some traps)
-  function addBranches(grid, rows, cols, ruleFn, rng, path) {
-    var pathSet = new Set(path.map(function(p) { return p[0] + ',' + p[1]; }));
-    for (var i = 0; i < Math.min(path.length, 6); i++) {
-      var idx = Math.floor(rng() * path.length);
-      var br = path[idx][0], bc = path[idx][1];
-      var branchLen = 2 + Math.floor(rng() * 3);
-      var isSafeBranch = rng() < 0.4;
-      var dirs = [[0,1],[0,-1],[1,0],[-1,0]];
-      for (var j = 0; j < branchLen; j++) {
-        var shuffled = dirs.slice().sort(function() { return rng() - 0.5; });
-        var moved = false;
-        for (var d = 0; d < shuffled.length; d++) {
-          var nr = br + shuffled[d][0], nc = bc + shuffled[d][1];
-          if (nr >= 0 && nr < rows && nc >= 0 && nc < cols && !pathSet.has(nr + ',' + nc)) {
-            grid[nr][nc] = isSafeBranch ? safeNumber(ruleFn, rng) : unsafeNumber(ruleFn, rng);
-            br = nr; bc = nc;
-            moved = true;
-            break;
-          }
-        }
-        if (!moved) break;
-      }
-    }
-  }
-
   // Ensure only one path exists from start to exit.
   // Any non-path safe tile that creates an alternate route gets swapped to unsafe.
   function enforceUniquePath(grid, rows, cols, ruleFn, rng, pathSet) {
