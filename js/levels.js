@@ -184,17 +184,44 @@
   }
 
   // Carve a guaranteed path from (0,0) to (rows-1, cols-1) using safe numbers
+  // Wanders significantly so the solution isn't a near-straight diagonal
   function carvePath(grid, rows, cols, ruleFn, rng) {
     var r = 0, c = 0;
+    var visited = Array.from({length: rows}, function() { return Array(cols).fill(false); });
+    visited[0][0] = true;
     var path = [[0, 0]];
-    while (r < rows - 1 || c < cols - 1) {
+    var maxSteps = rows * cols * 3; // safety limit
+
+    while ((r < rows - 1 || c < cols - 1) && path.length < maxSteps) {
       var moves = [];
-      if (r < rows - 1) moves.push([r + 1, c]);
-      if (c < cols - 1) moves.push([r, c + 1]);
-      if (r > 0 && rng() < 0.15) moves.push([r - 1, c]);
-      if (c > 0 && rng() < 0.15) moves.push([r, c - 1]);
-      var next = moves[Math.floor(rng() * moves.length)];
+      var dirs = [[1, 0], [0, 1], [-1, 0], [0, -1]];
+
+      for (var d = 0; d < dirs.length; d++) {
+        var nr = r + dirs[d][0], nc = c + dirs[d][1];
+        if (nr >= 0 && nr < rows && nc >= 0 && nc < cols && !visited[nr][nc]) {
+          moves.push([nr, nc]);
+        }
+      }
+
+      if (moves.length === 0) break; // stuck, shouldn't happen often
+
+      // Bias: 40% of the time pick a random neighbor (wander),
+      // 60% of the time prefer moves toward the exit
+      var next;
+      if (rng() < 0.4 && moves.length > 1) {
+        next = moves[Math.floor(rng() * moves.length)];
+      } else {
+        // Sort by distance to exit, pick closest (with some randomness among ties)
+        moves.sort(function(a, b) {
+          var da = (rows - 1 - a[0]) + (cols - 1 - a[1]);
+          var db = (rows - 1 - b[0]) + (cols - 1 - b[1]);
+          return da - db + (rng() - 0.5) * 0.5;
+        });
+        next = moves[0];
+      }
+
       r = next[0]; c = next[1];
+      visited[r][c] = true;
       grid[r][c] = safeNumber(ruleFn, rng);
       path.push([r, c]);
     }
