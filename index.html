@@ -37,9 +37,20 @@
       document.addEventListener('keydown', function(e) {
         var gs = engine.getState();
 
-        // Title screen: any key starts game
+        // Title screen: any key starts choosing lives
         if (gs.state === STATE.TITLE) {
-          engine.startGame();
+          engine.chooseLives();
+          return;
+        }
+
+        // Choose lives screen: handle number input
+        if (gs.state === STATE.CHOOSE_LIVES) {
+          var result = renderer.handleLivesKey(e.key);
+          if (result !== null) {
+            engine.startGame(result);
+          } else {
+            renderer.render(engine.getState());
+          }
           return;
         }
 
@@ -76,7 +87,7 @@
             var mx = e.clientX - rect.left;
             var my = e.clientY - rect.top;
             if (mx >= btn.x && mx <= btn.x + btn.w && my >= btn.y && my <= btn.y + btn.h) {
-              engine.startGame();
+              engine.chooseLives();
             }
           }
           return;
@@ -91,7 +102,7 @@
       var touchStartX = 0, touchStartY = 0;
       canvas.addEventListener('touchstart', function(e) {
         var gs = engine.getState();
-        if (gs.state === STATE.TITLE || gs.state === STATE.GAME_OVER || gs.state === STATE.WIN) {
+        if (gs.state === STATE.TITLE || gs.state === STATE.CHOOSE_LIVES || gs.state === STATE.GAME_OVER || gs.state === STATE.WIN) {
           // Handled by click
           return;
         }
@@ -102,7 +113,7 @@
 
       canvas.addEventListener('touchend', function(e) {
         var gs = engine.getState();
-        if (gs.state === STATE.TITLE || gs.state === STATE.GAME_OVER || gs.state === STATE.WIN) return;
+        if (gs.state === STATE.TITLE || gs.state === STATE.CHOOSE_LIVES || gs.state === STATE.GAME_OVER || gs.state === STATE.WIN) return;
         var t = e.changedTouches[0];
         var dx = t.clientX - touchStartX;
         var dy = t.clientY - touchStartY;

@@ -4,12 +4,13 @@
 (function() {
   'use strict';
 
-  const TOTAL_LIVES = 5;
+  const DEFAULT_LIVES = 5;
   const DEATH_DELAY = 600;
   const RULE_REVEAL_DELAY = 2000;
 
   const STATE = {
     TITLE: 'title',
+    CHOOSE_LIVES: 'choose_lives',
     PLAYING: 'playing',
     DYING: 'dying',
     RULE_REVEAL: 'rule_reveal',
@@ -17,9 +18,22 @@
     WIN: 'win',
   };
 
+  // Score = (levels_beaten * 1000 - deaths * 100) * multiplier
+  // multiplier = 10 / chosenLives (1 life = 10x, 5 lives = 2x, 9 lives ~1.1x)
+  function calcMultiplier(chosenLives) {
+    return 10 / chosenLives;
+  }
+
+  function calcScore(levelsBeat, deaths, chosenLives) {
+    var raw = levelsBeat * 1000 - deaths * 100;
+    return Math.max(0, Math.round(raw * calcMultiplier(chosenLives)));
+  }
+
   function createEngine() {
     let currentLevel = 0;
-    let lives = TOTAL_LIVES;
+    let chosenLives = DEFAULT_LIVES;
+    let lives = DEFAULT_LIVES;
+    let deaths = 0;
     let playerRow = 0;
     let playerCol = 0;
     let state = STATE.TITLE;
@@ -27,8 +41,8 @@
     let walked = null;
     let deathTile = null;
     let deathNumber = 0;
-    let deathTiles = [];  // persists across retries within a life pool
-    let safeWalked = [];  // persists across retries within a life pool
+    let deathTiles = [];
+    let safeWalked = [];
     let onStateChange = null;
 
     var levels = null;
@@ -83,6 +97,7 @@
 
       if (!lvl.isSafe(num)) {
         lives--;
+        deaths++;
         deathTile = {row: nr, col: nc};
         deathNumber = num;
         deathTiles.push({row: nr, col: nc});
@@ -134,12 +149,8 @@
     }
 
     function restartGame() {
-      currentLevel = 0;
-      lives = TOTAL_LIVES;
-      deathTiles = [];
-      safeWalked = [];
-      levels = window.LiarsGarden.generateLevels();
-      initLevel();
+      state = STATE.CHOOSE_LIVES;
+      notify();
     }
 
     function showTitle() {
@@ -147,12 +158,19 @@
       notify();
     }
 
-    function startGame() {
-      levels = window.LiarsGarden.generateLevels();
+    function chooseLives() {
+      state = STATE.CHOOSE_LIVES;
+      notify();
+    }
+
+    function startGame(numLives) {
+      chosenLives = numLives;
+      lives = numLives;
+      deaths = 0;
       currentLevel = 0;
-      lives = TOTAL_LIVES;
       deathTiles = [];
       safeWalked = [];
+      levels = window.LiarsGarden.generateLevels();
       initLevel();
     }
 
@@ -164,9 +182,12 @@
       return {
         state: state,
         currentLevel: currentLevel,
-        levelData: state === STATE.TITLE ? null : level(),
+        levelData: (state === STATE.TITLE || state === STATE.CHOOSE_LIVES) ? null : level(),
         lives: lives,
-        totalLives: TOTAL_LIVES,
+        chosenLives: chosenLives,
+        totalLives: chosenLives,
+        deaths: deaths,
+        score: calcScore(currentLevel, deaths, chosenLives),
         playerRow: playerRow,
         playerCol: playerCol,
         revealed: revealed,
@@ -180,6 +201,7 @@
 
     return {
       showTitle: showTitle,
+      chooseLives: chooseLives,
       startGame: startGame,
       initLevel: initLevel,
       move: move,

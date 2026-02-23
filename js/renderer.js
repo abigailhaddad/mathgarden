@@ -89,6 +89,12 @@
         return;
       }
 
+      // Choose lives screen
+      if (gs.state === STATE.CHOOSE_LIVES) {
+        drawChooseLives(rect.width, rect.height);
+        return;
+      }
+
       if (gs.levelData) {
         computeLayout(gs, rect.width, rect.height);
       }
@@ -103,9 +109,9 @@
       } else if (gs.state === STATE.RULE_REVEAL) {
         drawRuleReveal(gs, rect.width, rect.height);
       } else if (gs.state === STATE.GAME_OVER) {
-        drawGameOver(rect.width, rect.height);
+        drawGameOver(gs, rect.width, rect.height);
       } else if (gs.state === STATE.WIN) {
-        drawWin(rect.width, rect.height);
+        drawWin(gs, rect.width, rect.height);
       }
     }
 
@@ -230,11 +236,11 @@
         }
       }
 
-      // Level counter
+      // Score and level counter
       ctx.fillStyle = C.hudTextDim;
       ctx.textAlign = 'right';
       ctx.font = '13px monospace';
-      ctx.fillText('Level ' + (gs.currentLevel + 1) + '/8', canvasW - 12, HUD_HEIGHT / 2);
+      ctx.fillText('Score: ' + gs.score + '  Level ' + (gs.currentLevel + 1) + '/8', canvasW - 12, HUD_HEIGHT / 2);
 
       // Hint
       ctx.fillStyle = C.hintText;
@@ -406,6 +412,126 @@
       ctx.fill();
     }
 
+    var MIN_LIVES = 1;
+    var MAX_LIVES = 9;
+    var livesInput = '';
+    var livesError = '';
+
+    function drawChooseLives(w, h) {
+      drawVignette(w, h);
+
+      var time = Date.now() * 0.001;
+
+      // Floating numbers background (same as title)
+      ctx.font = '14px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      for (var i = 0; i < 40; i++) {
+        var nx = (Math.sin(i * 3.7 + time * 0.3) * 0.5 + 0.5) * w;
+        var ny = (Math.cos(i * 2.3 + time * 0.2) * 0.5 + 0.5) * h;
+        var num = ((i * 7 + 3) % 100) + 1;
+        var alpha = 0.08 + 0.05 * Math.sin(time * 0.5 + i * 1.1);
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = '#6a8a5a';
+        ctx.fillText(String(num), nx, ny);
+      }
+      ctx.globalAlpha = 1;
+
+      // Heading
+      var topY = h / 2 - 120;
+      ctx.fillStyle = C.numberText;
+      ctx.shadowColor = '#4a8a3a';
+      ctx.shadowBlur = 15;
+      ctx.font = 'bold 24px monospace';
+      ctx.fillText('HOW MANY LIVES?', w / 2, topY);
+      ctx.shadowBlur = 0;
+
+      // Subtext
+      ctx.fillStyle = '#a0b090';
+      ctx.font = '13px monospace';
+      ctx.globalAlpha = 0.7;
+      ctx.fillText('Fewer lives = higher score multiplier', w / 2, topY + 30);
+      ctx.globalAlpha = 1;
+
+      // Multiplier info
+      ctx.font = '12px monospace';
+      ctx.fillStyle = C.hudTextDim;
+      for (var l = MIN_LIVES; l <= MAX_LIVES; l++) {
+        var mult = (10 / l).toFixed(1).replace(/\.0$/, '');
+        var label = l + (l === 1 ? ' life' : ' lives') + ' = ' + mult + 'x';
+        var yy = topY + 55 + (l - MIN_LIVES) * 16;
+        ctx.fillText(label, w / 2, yy);
+      }
+
+      // Input display
+      var inputY = topY + 55 + (MAX_LIVES - MIN_LIVES) * 16 + 25;
+      var boxW = 120, boxH = 40;
+      var boxX = w / 2 - boxW / 2;
+
+      ctx.strokeStyle = 'rgba(140, 180, 120, 0.6)';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(boxX, inputY, boxW, boxH);
+      ctx.fillStyle = 'rgba(20, 30, 15, 0.8)';
+      ctx.fillRect(boxX, inputY, boxW, boxH);
+
+      // Show typed number or placeholder
+      ctx.font = 'bold 20px monospace';
+      if (livesInput.length > 0) {
+        ctx.fillStyle = C.numberText;
+        ctx.fillText(livesInput, w / 2, inputY + boxH / 2);
+      } else {
+        ctx.fillStyle = C.hudTextDim;
+        ctx.fillText(MIN_LIVES + '-' + MAX_LIVES, w / 2, inputY + boxH / 2);
+      }
+
+      // Blinking cursor
+      if (Math.floor(time * 2) % 2 === 0) {
+        var cursorX = w / 2 + (livesInput.length > 0 ? ctx.measureText(livesInput).width / 2 + 4 : 20);
+        ctx.fillStyle = C.numberText;
+        ctx.fillRect(cursorX, inputY + 10, 2, boxH - 20);
+      }
+
+      // Error message
+      if (livesError) {
+        ctx.fillStyle = C.deathText;
+        ctx.font = '12px monospace';
+        ctx.fillText(livesError, w / 2, inputY + boxH + 20);
+      }
+
+      // Hint
+      ctx.fillStyle = C.hintText;
+      ctx.font = '11px monospace';
+      ctx.globalAlpha = 0.5;
+      ctx.fillText('Type a number and press Enter', w / 2, inputY + boxH + 45);
+      ctx.globalAlpha = 1;
+
+      // Store for external access
+      createRenderer._livesInput = livesInput;
+    }
+
+    function handleLivesKey(key) {
+      if (key === 'Backspace') {
+        livesInput = livesInput.slice(0, -1);
+        livesError = '';
+        return null;
+      }
+      if (key === 'Enter') {
+        var n = parseInt(livesInput, 10);
+        if (isNaN(n) || n < MIN_LIVES || n > MAX_LIVES) {
+          livesError = 'Choose between ' + MIN_LIVES + ' and ' + MAX_LIVES + ' lives';
+          return null;
+        }
+        livesInput = '';
+        livesError = '';
+        return n;
+      }
+      if (/^[0-9]$/.test(key) && livesInput.length < 2) {
+        livesInput += key;
+        livesError = '';
+      }
+      return null;
+    }
+
     function drawDeathOverlay(gs, w, h) {
       ctx.fillStyle = 'rgba(20, 0, 0, 0.6)';
       ctx.fillRect(0, 0, w, h);
@@ -441,7 +567,7 @@
       ctx.fillText(gs.levelData.ruleText, w / 2, h / 2 + 10);
     }
 
-    function drawGameOver(w, h) {
+    function drawGameOver(gs, w, h) {
       ctx.fillStyle = 'rgba(10, 0, 0, 0.9)';
       ctx.fillRect(0, 0, w, h);
 
@@ -453,16 +579,26 @@
       ctx.font = 'bold 36px monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('GAME OVER', w / 2, h / 2 - 30);
+      ctx.fillText('GAME OVER', w / 2, h / 2 - 40);
       ctx.shadowBlur = 0;
       ctx.globalAlpha = 1;
 
+      // Score
+      ctx.fillStyle = C.ruleText;
+      ctx.font = 'bold 18px monospace';
+      ctx.fillText('Score: ' + gs.score, w / 2, h / 2 + 5);
+
+      ctx.fillStyle = C.hudTextDim;
+      ctx.font = '12px monospace';
+      var mult = (10 / gs.chosenLives).toFixed(1).replace(/\.0$/, '');
+      ctx.fillText(gs.currentLevel + ' levels \u00d7 ' + mult + 'x  |  ' + gs.deaths + ' death' + (gs.deaths !== 1 ? 's' : ''), w / 2, h / 2 + 30);
+
       ctx.fillStyle = C.hudTextDim;
       ctx.font = '14px monospace';
-      ctx.fillText('Press R or tap to restart', w / 2, h / 2 + 30);
+      ctx.fillText('Press R or tap to restart', w / 2, h / 2 + 60);
     }
 
-    function drawWin(w, h) {
+    function drawWin(gs, w, h) {
       ctx.fillStyle = C.overlay;
       ctx.fillRect(0, 0, w, h);
 
@@ -472,17 +608,31 @@
       ctx.font = 'bold 24px monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('Q.E.D.', w / 2, h / 2 - 20);
+      ctx.fillText('Q.E.D.', w / 2, h / 2 - 50);
+      ctx.shadowBlur = 0;
+
+      // Score
+      ctx.fillStyle = C.numberText;
+      ctx.shadowColor = '#4a8a3a';
+      ctx.shadowBlur = 10;
+      ctx.font = 'bold 22px monospace';
+      ctx.fillText('Score: ' + gs.score, w / 2, h / 2 - 10);
       ctx.shadowBlur = 0;
 
       ctx.fillStyle = C.hudTextDim;
+      ctx.font = '12px monospace';
+      var mult = 6 - gs.chosenLives;
+      ctx.fillText('8 levels \u00d7 ' + mult + 'x  |  ' + gs.deaths + ' death' + (gs.deaths !== 1 ? 's' : ''), w / 2, h / 2 + 15);
+
+      ctx.fillStyle = C.hudTextDim;
       ctx.font = '13px monospace';
-      ctx.fillText('Press R to begin again.', w / 2, h / 2 + 20);
+      ctx.fillText('Press R to begin again.', w / 2, h / 2 + 45);
     }
 
     return {
       resize: resize,
       render: render,
+      handleLivesKey: handleLivesKey,
     };
   }
 
