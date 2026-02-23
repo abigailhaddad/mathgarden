@@ -412,8 +412,8 @@
       ctx.fill();
     }
 
-    var MIN_LIVES = 1;
-    var MAX_LIVES = 9;
+    var MIN_LIVES = 10;
+    var MAX_LIVES = 50;
     var livesInput = '';
     var livesError = '';
 
@@ -438,33 +438,22 @@
       ctx.globalAlpha = 1;
 
       // Heading
-      var topY = h / 2 - 120;
       ctx.fillStyle = C.numberText;
       ctx.shadowColor = '#4a8a3a';
       ctx.shadowBlur = 15;
       ctx.font = 'bold 24px monospace';
-      ctx.fillText('HOW MANY LIVES?', w / 2, topY);
+      ctx.fillText('HOW MANY LIVES?', w / 2, h / 2 - 60);
       ctx.shadowBlur = 0;
 
       // Subtext
       ctx.fillStyle = '#a0b090';
       ctx.font = '13px monospace';
       ctx.globalAlpha = 0.7;
-      ctx.fillText('Fewer lives = higher score multiplier', w / 2, topY + 30);
+      ctx.fillText('Fewer lives = higher score', w / 2, h / 2 - 30);
       ctx.globalAlpha = 1;
 
-      // Multiplier info
-      ctx.font = '12px monospace';
-      ctx.fillStyle = C.hudTextDim;
-      for (var l = MIN_LIVES; l <= MAX_LIVES; l++) {
-        var mult = (10 / l).toFixed(1).replace(/\.0$/, '');
-        var label = l + (l === 1 ? ' life' : ' lives') + ' = ' + mult + 'x';
-        var yy = topY + 55 + (l - MIN_LIVES) * 16;
-        ctx.fillText(label, w / 2, yy);
-      }
-
       // Input display
-      var inputY = topY + 55 + (MAX_LIVES - MIN_LIVES) * 16 + 25;
+      var inputY = h / 2;
       var boxW = 120, boxH = 40;
       var boxX = w / 2 - boxW / 2;
 

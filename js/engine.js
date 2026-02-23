@@ -4,7 +4,7 @@
 (function() {
   'use strict';
 
-  const DEFAULT_LIVES = 5;
+  const DEFAULT_LIVES = 10;
   const DEATH_DELAY = 600;
   const RULE_REVEAL_DELAY = 2000;
 
