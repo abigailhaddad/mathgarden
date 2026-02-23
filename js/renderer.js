@@ -147,13 +147,33 @@
       ctx.fillText('Step wrong and you die.', w / 2, h / 2 + 30);
       ctx.globalAlpha = 1;
 
-      // Prompt — pulsing but readable
-      var promptAlpha = 0.5 + 0.4 * Math.sin(time * 3);
-      ctx.globalAlpha = promptAlpha;
-      ctx.fillStyle = '#8a9a7a';
-      ctx.font = '12px monospace';
-      ctx.fillText('Press any key to begin', w / 2, h / 2 + 80);
+      // Start button
+      var btnW = 180, btnH = 44;
+      var btnX = w / 2 - btnW / 2;
+      var btnY = h / 2 + 60;
+      var btnPulse = 0.6 + 0.15 * Math.sin(time * 2.5);
+
+      // Button border glow
+      ctx.shadowColor = '#4a8a3a';
+      ctx.shadowBlur = 10;
+      ctx.strokeStyle = 'rgba(140, 180, 120, ' + btnPulse + ')';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(btnX, btnY, btnW, btnH);
+      ctx.shadowBlur = 0;
+
+      // Button fill
+      ctx.fillStyle = 'rgba(20, 30, 15, 0.8)';
+      ctx.fillRect(btnX, btnY, btnW, btnH);
+
+      // Button text
+      ctx.fillStyle = '#b0d0a0';
+      ctx.font = 'bold 16px monospace';
+      ctx.globalAlpha = 0.8 + 0.15 * Math.sin(time * 3);
+      ctx.fillText('[ START ]', w / 2, btnY + btnH / 2);
       ctx.globalAlpha = 1;
+
+      // Store button bounds for click detection
+      createRenderer._titleBtn = { x: btnX, y: btnY, w: btnW, h: btnH };
     }
 
     function drawVignette(w, h) {
