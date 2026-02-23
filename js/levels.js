@@ -303,6 +303,23 @@
       }
     }
 
+    // Sprinkle tempting safe tiles adjacent to the path (red herring lures)
+    var dirs = [[0,1],[0,-1],[1,0],[-1,0]];
+    for (var pi = 0; pi < path.length; pi++) {
+      var pr = path[pi][0], pc = path[pi][1];
+      for (var d = 0; d < dirs.length; d++) {
+        var nr = pr + dirs[d][0], nc = pc + dirs[d][1];
+        if (nr >= 0 && nr < rows && nc >= 0 && nc < cols
+            && !pathSet.has(nr + ',' + nc)
+            && !(nr === 0 && nc === 0)
+            && !(nr === rows-1 && nc === cols-1)
+            && !ruleFn(grid[nr][nc])
+            && rng() < 0.25) {
+          grid[nr][nc] = safeNumber(ruleFn, rng);
+        }
+      }
+    }
+
     // Remove any safe tiles that create alternate routes to the exit
     enforceUniquePath(grid, rows, cols, ruleFn, rng, pathSet);
 
