@@ -43,8 +43,8 @@
   function ruleExactNumber() {
     var num = pick([3, 5, 7, 11, 13, 17, 19, 23]);
     return {
-      name: "The Number " + num,
-      hint: "Only one number is safe...",
+      name: "Tunnel I",
+      hint: "Something about this number...",
       ruleText: "Only the number " + num + " is safe.",
       fn: function(n) { return n === 0 || n === num; }
     };
@@ -55,15 +55,17 @@
     var isEven = Math.random() < 0.5;
     if (isEven) {
       return {
-        name: "Even Ground",
-        hint: "Some numbers feel more balanced...",
+        id: 'even',
+        name: "Tunnel II",
+        hint: "There's a pattern here...",
         ruleText: "Even numbers are safe.",
         fn: function(n) { return n === 0 || n % 2 === 0; }
       };
     } else {
       return {
-        name: "Odd One Out",
-        hint: "The unusual ones survive...",
+        id: 'odd',
+        name: "Tunnel II",
+        hint: "There's a pattern here...",
         ruleText: "Odd numbers are safe.",
         fn: function(n) { return n === 0 || n % 2 === 1; }
       };
@@ -72,18 +74,20 @@
 
   function ruleOppositeEvenOdd(prevRule) {
     // Whatever level 2 wasn't
-    var prevWasEven = prevRule.name === "Even Ground";
+    var prevWasEven = prevRule.id === 'even';
     if (prevWasEven) {
       return {
-        name: "Odd One Out",
-        hint: "The unusual ones survive...",
+        id: 'odd',
+        name: "Tunnel III",
+        hint: "The pattern has shifted...",
         ruleText: "Odd numbers are safe.",
         fn: function(n) { return n === 0 || n % 2 === 1; }
       };
     } else {
       return {
-        name: "Even Ground",
-        hint: "Some numbers feel more balanced...",
+        id: 'even',
+        name: "Tunnel III",
+        hint: "The pattern has shifted...",
         ruleText: "Even numbers are safe.",
         fn: function(n) { return n === 0 || n % 2 === 0; }
       };
@@ -93,7 +97,7 @@
   function ruleDivisible() {
     var d = pick([3, 4, 5, 6]);
     return {
-      name: "By " + (d === 3 ? "Threes" : d === 4 ? "Fours" : d === 5 ? "Fives" : "Sixes"),
+      name: "Tunnel IV",
       hint: "Count carefully...",
       ruleText: "Multiples of " + d + " are safe.",
       fn: function(n) { return n === 0 || n % d === 0; }
@@ -103,8 +107,8 @@
   function ruleSmallNumbers() {
     var threshold = pick([15, 20, 25, 30]);
     return {
-      name: "Small World",
-      hint: "Stay low to the ground...",
+      name: "Tunnel V",
+      hint: "How high dare you go?",
       ruleText: "Numbers " + threshold + " or less are safe.",
       fn: function(n) { return n === 0 || n <= threshold; }
     };
@@ -124,23 +128,23 @@
     var variant = pick(['squares', 'cubes', 'pow2']);
     if (variant === 'cubes') {
       return {
-        name: "Perfect Cubes",
-        hint: "Some numbers have perfect cube roots...",
+        name: "Tunnel VI",
+        hint: "What makes a number special?",
         ruleText: "Perfect cubes are safe.",
         fn: function(n) { return n === 0 || isPerfectCube(n); }
       };
     }
     if (variant === 'pow2') {
       return {
-        name: "Powers of Two",
-        hint: "Double or nothing...",
+        name: "Tunnel VI",
+        hint: "What makes a number special?",
         ruleText: "Powers of 2 are safe.",
         fn: function(n) { return n === 0 || isPowerOf2(n); }
       };
     }
     return {
-      name: "Perfect Squares",
-      hint: "Some numbers have perfect roots...",
+      name: "Tunnel VI",
+      hint: "What makes a number special?",
       ruleText: "Perfect squares are safe.",
       fn: function(n) { return n === 0 || isPerfectSquare(n); }
     };
@@ -150,15 +154,15 @@
     var variant = pick(['primes', 'composites']);
     if (variant === 'composites') {
       return {
-        name: "Composite Territory",
-        hint: "The divisible ones endure...",
+        name: "Tunnel VII",
+        hint: "Not all numbers are created equal...",
         ruleText: "Composite numbers are safe.",
         fn: function(n) { return n === 0 || (n > 1 && !isPrime(n)); }
       };
     }
     return {
-      name: "Prime Territory",
-      hint: "Indivisible numbers endure...",
+      name: "Tunnel VII",
+      hint: "Not all numbers are created equal...",
       ruleText: "Prime numbers are safe.",
       fn: function(n) { return n === 0 || isPrime(n); }
     };
@@ -171,8 +175,8 @@
       ? "divisible by " + divisor
       : "n % " + divisor + " is 0 or 1";
     return {
-      name: "The Remainder",
-      hint: "Divide by " + divisor + ", watch what's left...",
+      name: "Tunnel VIII",
+      hint: "What remains?",
       ruleText: "Numbers where " + remText + " are safe.",
       fn: function(n) { return n === 0 || n % divisor <= maxRem; }
     };
