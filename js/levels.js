@@ -319,8 +319,8 @@
     var rng = mulberry32(seed);
     var grid = Array.from({length: rows}, function() { return Array(cols).fill(0); });
 
-    grid[0][0] = 0;
-    grid[rows - 1][cols - 1] = 0;
+    grid[0][0] = safeNumber(ruleFn, rng);
+    grid[rows - 1][cols - 1] = safeNumber(ruleFn, rng);
 
     var path = carvePath(grid, rows, cols, ruleFn, rng);
     var pathSet = new Set(path.map(function(p) { return p[0] + ',' + p[1]; }));

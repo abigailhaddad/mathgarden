@@ -4,7 +4,7 @@
 (function() {
   'use strict';
 
-  const DEFAULT_LIVES = 10;
+  const DEFAULT_LIVES = 5;
   const DEATH_DELAY = 600;
   const RULE_REVEAL_DELAY = 2000;
 
@@ -62,10 +62,21 @@
       // Don't reset deathTiles/safeWalked — they persist until level beat or game over
       state = STATE.PLAYING;
 
-      // Start and exit are always revealed
+      // Start is always revealed and walked (shows green)
       revealed[0][0] = true;
       walked[0][0] = true;
       revealed[lvl.rows - 1][lvl.cols - 1] = true;
+
+      // Find a safe adjacent tile to pre-reveal as a freebie
+      const dirs = [[0,1],[1,0],[0,-1],[-1,0]];
+      for (const [dr, dc] of dirs) {
+        const nr = dr, nc = dc;
+        if (nr >= 0 && nr < lvl.rows && nc >= 0 && nc < lvl.cols && lvl.isSafe(lvl.grid[nr][nc])) {
+          revealed[nr][nc] = true;
+          walked[nr][nc] = true;
+          break;
+        }
+      }
 
       // Reveal neighbors of start
       revealAdjacent(0, 0);

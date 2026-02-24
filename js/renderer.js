@@ -286,9 +286,6 @@
       } else if (isExit) {
         bg = C.exit;
         border = C.exitBorder;
-      } else if (isStart) {
-        bg = C.start;
-        border = C.startBorder;
       } else if (isWalked) {
         bg = C.walked;
         border = C.walkedBorder;
@@ -333,7 +330,7 @@
 
       // Number text — BRIGHT enough to read clearly
       if (isRevealed || isStart || isExit || (isDeath && gs.state === STATE.DYING) || isPastDeath || isPastSafe) {
-        var displayNum = (isStart || isExit) ? '\u2605' : String(num);
+        var displayNum = isExit ? '\u2605' : String(num);
 
         if (isDeath && gs.state === STATE.DYING) {
           ctx.fillStyle = '#ee2222';
@@ -343,11 +340,11 @@
           ctx.fillStyle = '#cc4444';
           ctx.shadowColor = '#880000';
           ctx.shadowBlur = 6;
-        } else if (isWalked) {
+        } else if (isWalked || isStart) {
           ctx.fillStyle = C.numberTextWalked;
           ctx.shadowColor = '#5a8a4a';
           ctx.shadowBlur = 6;
-        } else if (isStart || isExit) {
+        } else if (isExit) {
           ctx.fillStyle = C.numberTextStart;
           ctx.shadowColor = '#4a8a8a';
           ctx.shadowBlur = 6;
@@ -412,8 +409,8 @@
       ctx.fill();
     }
 
-    var MIN_LIVES = 10;
-    var MAX_LIVES = 50;
+    var MIN_LIVES = 1;
+    var MAX_LIVES = 25;
     var livesInput = '';
     var livesError = '';
 
