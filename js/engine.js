@@ -10,6 +10,7 @@
 
   const STATE = {
     TITLE: 'title',
+    CHOOSE_CHARACTER: 'choose_character',
     CHOOSE_LIVES: 'choose_lives',
     PLAYING: 'playing',
     DYING: 'dying',
@@ -17,6 +18,15 @@
     GAME_OVER: 'game_over',
     WIN: 'win',
   };
+
+  const CHARACTERS = [
+    { id: 'dog', emoji: '\ud83d\udc36', name: 'Dog' },
+    { id: 'spaceship', emoji: '\ud83d\ude80', name: 'Spaceship' },
+    { id: 'waffle', emoji: '\ud83e\uddc7', name: 'Waffle' },
+    { id: 'ghost', emoji: '\ud83d\udc7b', name: 'Ghost' },
+    { id: 'mushroom', emoji: '\ud83c\udf44', name: 'Mushroom' },
+    { id: 'bug', emoji: '\ud83d\udc1b', name: 'Bug' },
+  ];
 
   // Score = (levels_beaten * 1000 - deaths * 100) * multiplier
   // multiplier = 10 / chosenLives (1 life = 10x, 5 lives = 2x, 9 lives ~1.1x)
@@ -43,6 +53,7 @@
     let deathNumber = 0;
     let deathTiles = [];
     let safeWalked = [];
+    let chosenCharacter = CHARACTERS[0];
     let onStateChange = null;
 
     var levels = null;
@@ -160,12 +171,23 @@
     }
 
     function restartGame() {
-      state = STATE.CHOOSE_LIVES;
+      state = STATE.CHOOSE_CHARACTER;
       notify();
     }
 
     function showTitle() {
       state = STATE.TITLE;
+      notify();
+    }
+
+    function chooseCharacter() {
+      state = STATE.CHOOSE_CHARACTER;
+      notify();
+    }
+
+    function selectCharacter(index) {
+      chosenCharacter = CHARACTERS[index] || CHARACTERS[0];
+      state = STATE.CHOOSE_LIVES;
       notify();
     }
 
@@ -193,7 +215,8 @@
       return {
         state: state,
         currentLevel: currentLevel,
-        levelData: (state === STATE.TITLE || state === STATE.CHOOSE_LIVES) ? null : level(),
+        levelData: (state === STATE.TITLE || state === STATE.CHOOSE_CHARACTER || state === STATE.CHOOSE_LIVES) ? null : level(),
+        character: chosenCharacter,
         lives: lives,
         chosenLives: chosenLives,
         totalLives: chosenLives,
@@ -212,6 +235,8 @@
 
     return {
       showTitle: showTitle,
+      chooseCharacter: chooseCharacter,
+      selectCharacter: selectCharacter,
       chooseLives: chooseLives,
       startGame: startGame,
       initLevel: initLevel,
@@ -229,4 +254,5 @@
   window.LiarsGarden = window.LiarsGarden || {};
   window.LiarsGarden.createEngine = createEngine;
   window.LiarsGarden.STATE = STATE;
+  window.LiarsGarden.CHARACTERS = CHARACTERS;
 })();

@@ -89,6 +89,12 @@
         return;
       }
 
+      // Choose character screen
+      if (gs.state === STATE.CHOOSE_CHARACTER) {
+        drawChooseCharacter(rect.width, rect.height);
+        return;
+      }
+
       // Choose lives screen
       if (gs.state === STATE.CHOOSE_LIVES) {
         drawChooseLives(rect.width, rect.height);
@@ -180,6 +186,126 @@
 
       // Store button bounds for click detection
       createRenderer._titleBtn = { x: btnX, y: btnY, w: btnW, h: btnH };
+    }
+
+    var selectedCharIndex = 0;
+    var charButtons = [];
+
+    function drawChooseCharacter(w, h) {
+      drawVignette(w, h);
+      var CHARS = window.LiarsGarden.CHARACTERS;
+      var time = Date.now() * 0.001;
+
+      // Floating numbers background
+      ctx.font = '14px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      for (var i = 0; i < 40; i++) {
+        var nx = (Math.sin(i * 3.7 + time * 0.3) * 0.5 + 0.5) * w;
+        var ny = (Math.cos(i * 2.3 + time * 0.2) * 0.5 + 0.5) * h;
+        var num = ((i * 7 + 3) % 100) + 1;
+        var alpha = 0.08 + 0.05 * Math.sin(time * 0.5 + i * 1.1);
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = '#6a8a5a';
+        ctx.fillText(String(num), nx, ny);
+      }
+      ctx.globalAlpha = 1;
+
+      // Heading
+      ctx.fillStyle = C.numberText;
+      ctx.shadowColor = '#4a8a3a';
+      ctx.shadowBlur = 15;
+      ctx.font = 'bold 24px monospace';
+      ctx.fillText('CHOOSE YOUR CHARACTER', w / 2, h * 0.18);
+      ctx.shadowBlur = 0;
+
+      // Grid of characters
+      var cols = 3;
+      var rows = Math.ceil(CHARS.length / cols);
+      var cellW = 100, cellH = 90;
+      var gap = 16;
+      var totalW = cols * cellW + (cols - 1) * gap;
+      var totalH = rows * cellH + (rows - 1) * gap;
+      var startX = w / 2 - totalW / 2;
+      var startY = h / 2 - totalH / 2 + 10;
+
+      charButtons = [];
+
+      for (var i = 0; i < CHARS.length; i++) {
+        var col = i % cols;
+        var row = Math.floor(i / cols);
+        var bx = startX + col * (cellW + gap);
+        var by = startY + row * (cellH + gap);
+
+        var isSelected = i === selectedCharIndex;
+        var pulse = isSelected ? (0.7 + 0.2 * Math.sin(time * 3)) : 0.4;
+
+        // Box
+        ctx.strokeStyle = isSelected ? 'rgba(140, 180, 120, ' + pulse + ')' : 'rgba(80, 100, 70, 0.3)';
+        ctx.lineWidth = isSelected ? 2 : 1;
+        if (isSelected) {
+          ctx.shadowColor = '#4a8a3a';
+          ctx.shadowBlur = 8;
+        }
+        ctx.strokeRect(bx, by, cellW, cellH);
+        ctx.shadowBlur = 0;
+
+        ctx.fillStyle = isSelected ? 'rgba(20, 35, 15, 0.9)' : 'rgba(15, 20, 10, 0.6)';
+        ctx.fillRect(bx, by, cellW, cellH);
+
+        // Emoji
+        ctx.font = '32px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(CHARS[i].emoji, bx + cellW / 2, by + cellH / 2 - 8);
+
+        // Name
+        ctx.font = '11px monospace';
+        ctx.fillStyle = isSelected ? C.numberText : '#6a7a5a';
+        ctx.fillText(CHARS[i].name, bx + cellW / 2, by + cellH - 14);
+
+        charButtons.push({ x: bx, y: by, w: cellW, h: cellH, index: i });
+      }
+
+      // Hint
+      ctx.fillStyle = C.hintText;
+      ctx.font = '11px monospace';
+      ctx.textAlign = 'center';
+      ctx.globalAlpha = 0.5;
+      ctx.fillText('Click to select, Enter to confirm', w / 2, startY + totalH + 30);
+      ctx.globalAlpha = 1;
+
+      // Store for external access
+      createRenderer._charButtons = charButtons;
+      createRenderer._selectedCharIndex = selectedCharIndex;
+    }
+
+    function handleCharacterKey(key) {
+      var CHARS = window.LiarsGarden.CHARACTERS;
+      var cols = 3;
+      if (key === 'ArrowRight' || key === 'd' || key === 'D') {
+        selectedCharIndex = (selectedCharIndex + 1) % CHARS.length;
+      } else if (key === 'ArrowLeft' || key === 'a' || key === 'A') {
+        selectedCharIndex = (selectedCharIndex - 1 + CHARS.length) % CHARS.length;
+      } else if (key === 'ArrowDown' || key === 's' || key === 'S') {
+        selectedCharIndex = Math.min(selectedCharIndex + cols, CHARS.length - 1);
+      } else if (key === 'ArrowUp' || key === 'w' || key === 'W') {
+        selectedCharIndex = Math.max(selectedCharIndex - cols, 0);
+      } else if (key === 'Enter' || key === ' ') {
+        return selectedCharIndex;
+      }
+      return null;
+    }
+
+    function handleCharacterClick(mx, my) {
+      for (var i = 0; i < charButtons.length; i++) {
+        var b = charButtons[i];
+        if (mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) {
+          selectedCharIndex = b.index;
+          return b.index;
+        }
+      }
+      return null;
     }
 
     function drawVignette(w, h) {
@@ -381,32 +507,13 @@
       ctx.fillStyle = 'rgba(90, 138, 90, ' + glowPulse + ')';
       ctx.fill();
 
-      // Body
-      ctx.beginPath();
-      ctx.ellipse(x, y, r, r * 0.7, 0, 0, Math.PI * 2);
-      ctx.fillStyle = C.playerBody;
-      ctx.fill();
-      ctx.strokeStyle = C.playerShell;
-      ctx.lineWidth = 2;
-      ctx.stroke();
-
-      // Shell segments
-      ctx.beginPath();
-      ctx.moveTo(x - r * 0.3, y - r * 0.5);
-      ctx.lineTo(x - r * 0.3, y + r * 0.5);
-      ctx.moveTo(x + r * 0.3, y - r * 0.5);
-      ctx.lineTo(x + r * 0.3, y + r * 0.5);
-      ctx.strokeStyle = C.playerShell;
-      ctx.lineWidth = 1;
-      ctx.stroke();
-
-      // Eyes — glowing
-      var eyeGlow = 0.7 + 0.3 * Math.sin(Date.now() * 0.004);
-      ctx.fillStyle = 'rgba(160, 220, 130, ' + eyeGlow + ')';
-      ctx.beginPath();
-      ctx.arc(x - r * 0.22, y - r * 0.15, 2.5, 0, Math.PI * 2);
-      ctx.arc(x + r * 0.22, y - r * 0.15, 2.5, 0, Math.PI * 2);
-      ctx.fill();
+      // Draw character emoji
+      var emoji = gs.character ? gs.character.emoji : '\ud83d\udc1b';
+      var fontSize = Math.floor(tileSize * 0.55);
+      ctx.font = fontSize + 'px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(emoji, x, y);
     }
 
     var MIN_LIVES = 1;
@@ -619,6 +726,8 @@
       resize: resize,
       render: render,
       handleLivesKey: handleLivesKey,
+      handleCharacterKey: handleCharacterKey,
+      handleCharacterClick: handleCharacterClick,
     };
   }
 
