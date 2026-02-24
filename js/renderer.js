@@ -498,18 +498,18 @@
 
       var x = gridOffsetX + gs.playerCol * tileSize + tileSize / 2;
       var y = gridOffsetY + gs.playerRow * tileSize + tileSize / 2;
-      var r = tileSize * 0.28;
+      var r = tileSize * 0.4;
 
-      // Glow under player
+      // Bright glow under player
+      var glowPulse = 0.25 + 0.1 * Math.sin(Date.now() * 0.003);
       ctx.beginPath();
-      ctx.arc(x, y, r + 6, 0, Math.PI * 2);
-      var glowPulse = 0.1 + 0.05 * Math.sin(Date.now() * 0.003);
-      ctx.fillStyle = 'rgba(90, 138, 90, ' + glowPulse + ')';
+      ctx.arc(x, y, r + 4, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(90, 180, 90, ' + glowPulse + ')';
       ctx.fill();
 
-      // Draw character emoji
+      // Draw character emoji — large enough to fill the tile
       var emoji = gs.character ? gs.character.emoji : '\ud83d\udc1b';
-      var fontSize = Math.floor(tileSize * 0.55);
+      var fontSize = Math.floor(tileSize * 0.75);
       ctx.font = fontSize + 'px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
