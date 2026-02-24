@@ -17,7 +17,7 @@ A browser-based number puzzle game. Navigate a grid of hidden numbers, figure ou
 
 Open `index.html` in a browser. No build step, no dependencies.
 
-Hosted at: https://abigailhaddad.github.io/mathgarden/
+Hosted at: https://proofbyelimination.netlify.app/
 
 ## Structure
 
