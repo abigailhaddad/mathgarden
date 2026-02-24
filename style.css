@@ -20,3 +20,27 @@ html, body {
   height: 100%;
   cursor: default;
 }
+
+#footer-links {
+  position: fixed;
+  bottom: 10px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-family: monospace;
+  font-size: 11px;
+  z-index: 10;
+  pointer-events: none;
+}
+
+#footer-links a {
+  color: #4a5a3a;
+  text-decoration: none;
+  margin: 0 10px;
+  pointer-events: auto;
+  transition: color 0.2s;
+}
+
+#footer-links a:hover {
+  color: #8aaa6a;
+}
