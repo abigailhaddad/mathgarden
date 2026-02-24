@@ -518,15 +518,15 @@
 
     var MIN_LIVES = 1;
     var MAX_LIVES = 25;
-    var livesInput = '';
-    var livesError = '';
+    var livesCount = 5;
+    var livesButtons = {};
 
     function drawChooseLives(w, h) {
       drawVignette(w, h);
 
       var time = Date.now() * 0.001;
 
-      // Floating numbers background (same as title)
+      // Floating numbers background
       ctx.font = '14px monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
@@ -546,83 +546,125 @@
       ctx.shadowColor = '#4a8a3a';
       ctx.shadowBlur = 15;
       ctx.font = 'bold 24px monospace';
-      ctx.fillText('HOW MANY LIVES?', w / 2, h / 2 - 60);
+      ctx.fillText('HOW MANY LIVES?', w / 2, h / 2 - 80);
       ctx.shadowBlur = 0;
 
       // Subtext
       ctx.fillStyle = '#a0b090';
       ctx.font = '13px monospace';
       ctx.globalAlpha = 0.7;
-      ctx.fillText('Fewer lives = higher score', w / 2, h / 2 - 30);
+      ctx.fillText('Fewer lives = higher score', w / 2, h / 2 - 50);
       ctx.globalAlpha = 1;
 
-      // Input display
-      var inputY = h / 2;
-      var boxW = 120, boxH = 40;
-      var boxX = w / 2 - boxW / 2;
+      // Stepper: [ - ]  NUMBER  [ + ]
+      var centerY = h / 2 - 5;
+      var btnSize = 50;
+      var numBoxW = 80;
+      var totalW = btnSize + 16 + numBoxW + 16 + btnSize;
+      var startX = w / 2 - totalW / 2;
 
-      ctx.strokeStyle = 'rgba(140, 180, 120, 0.6)';
+      // Minus button
+      var minusX = startX;
+      var btnPulse = 0.5 + 0.1 * Math.sin(time * 2);
+      ctx.strokeStyle = livesCount > MIN_LIVES ? 'rgba(140, 180, 120, ' + btnPulse + ')' : 'rgba(60, 70, 50, 0.3)';
       ctx.lineWidth = 1.5;
-      ctx.strokeRect(boxX, inputY, boxW, boxH);
+      ctx.strokeRect(minusX, centerY, btnSize, btnSize);
       ctx.fillStyle = 'rgba(20, 30, 15, 0.8)';
-      ctx.fillRect(boxX, inputY, boxW, boxH);
+      ctx.fillRect(minusX, centerY, btnSize, btnSize);
+      ctx.fillStyle = livesCount > MIN_LIVES ? '#b0d0a0' : '#3a4a2a';
+      ctx.font = 'bold 28px monospace';
+      ctx.fillText('-', minusX + btnSize / 2, centerY + btnSize / 2);
 
-      // Show typed number or placeholder
-      ctx.font = 'bold 20px monospace';
-      if (livesInput.length > 0) {
-        ctx.fillStyle = C.numberText;
-        ctx.fillText(livesInput, w / 2, inputY + boxH / 2);
-      } else {
-        ctx.fillStyle = C.hudTextDim;
-        ctx.fillText(MIN_LIVES + '-' + MAX_LIVES, w / 2, inputY + boxH / 2);
-      }
+      // Number display
+      var numX = minusX + btnSize + 16;
+      ctx.strokeStyle = 'rgba(140, 180, 120, 0.6)';
+      ctx.strokeRect(numX, centerY, numBoxW, btnSize);
+      ctx.fillStyle = 'rgba(20, 30, 15, 0.8)';
+      ctx.fillRect(numX, centerY, numBoxW, btnSize);
+      ctx.fillStyle = C.numberText;
+      ctx.font = 'bold 28px monospace';
+      ctx.fillText(String(livesCount), numX + numBoxW / 2, centerY + btnSize / 2);
 
-      // Blinking cursor
-      if (Math.floor(time * 2) % 2 === 0) {
-        var cursorX = w / 2 + (livesInput.length > 0 ? ctx.measureText(livesInput).width / 2 + 4 : 20);
-        ctx.fillStyle = C.numberText;
-        ctx.fillRect(cursorX, inputY + 10, 2, boxH - 20);
-      }
+      // Plus button
+      var plusX = numX + numBoxW + 16;
+      ctx.strokeStyle = livesCount < MAX_LIVES ? 'rgba(140, 180, 120, ' + btnPulse + ')' : 'rgba(60, 70, 50, 0.3)';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(plusX, centerY, btnSize, btnSize);
+      ctx.fillStyle = 'rgba(20, 30, 15, 0.8)';
+      ctx.fillRect(plusX, centerY, btnSize, btnSize);
+      ctx.fillStyle = livesCount < MAX_LIVES ? '#b0d0a0' : '#3a4a2a';
+      ctx.font = 'bold 28px monospace';
+      ctx.fillText('+', plusX + btnSize / 2, centerY + btnSize / 2);
 
-      // Error message
-      if (livesError) {
-        ctx.fillStyle = C.deathText;
-        ctx.font = '12px monospace';
-        ctx.fillText(livesError, w / 2, inputY + boxH + 20);
-      }
+      // GO button
+      var goW = 140, goH = 44;
+      var goX = w / 2 - goW / 2;
+      var goY = centerY + btnSize + 30;
+      var goPulse = 0.6 + 0.15 * Math.sin(time * 2.5);
+      ctx.shadowColor = '#4a8a3a';
+      ctx.shadowBlur = 10;
+      ctx.strokeStyle = 'rgba(140, 180, 120, ' + goPulse + ')';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(goX, goY, goW, goH);
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = 'rgba(20, 30, 15, 0.8)';
+      ctx.fillRect(goX, goY, goW, goH);
+      ctx.fillStyle = '#b0d0a0';
+      ctx.font = 'bold 16px monospace';
+      ctx.globalAlpha = 0.8 + 0.15 * Math.sin(time * 3);
+      ctx.fillText('[ GO ]', w / 2, goY + goH / 2);
+      ctx.globalAlpha = 1;
 
-      // Hint
+      // Multiplier hint
+      var mult = (10 / livesCount).toFixed(1).replace(/\.0$/, '');
       ctx.fillStyle = C.hintText;
       ctx.font = '11px monospace';
       ctx.globalAlpha = 0.5;
-      ctx.fillText('Type a number and press Enter', w / 2, inputY + boxH + 45);
+      ctx.fillText('Score multiplier: ' + mult + 'x', w / 2, goY + goH + 25);
       ctx.globalAlpha = 1;
 
-      // Store for external access
-      createRenderer._livesInput = livesInput;
+      // Store button bounds
+      livesButtons = {
+        minus: { x: minusX, y: centerY, w: btnSize, h: btnSize },
+        plus: { x: plusX, y: centerY, w: btnSize, h: btnSize },
+        go: { x: goX, y: goY, w: goW, h: goH },
+      };
+      createRenderer._livesButtons = livesButtons;
     }
 
     function handleLivesKey(key) {
-      if (key === 'Backspace') {
-        livesInput = livesInput.slice(0, -1);
-        livesError = '';
+      if (key === 'ArrowLeft' || key === 'ArrowDown' || key === 'a' || key === 'A') {
+        if (livesCount > MIN_LIVES) livesCount--;
         return null;
       }
-      if (key === 'Enter') {
-        var n = parseInt(livesInput, 10);
-        if (isNaN(n) || n < MIN_LIVES || n > MAX_LIVES) {
-          livesError = 'Choose between ' + MIN_LIVES + ' and ' + MAX_LIVES + ' lives';
-          return null;
-        }
-        livesInput = '';
-        livesError = '';
-        return n;
+      if (key === 'ArrowRight' || key === 'ArrowUp' || key === 'd' || key === 'D') {
+        if (livesCount < MAX_LIVES) livesCount++;
+        return null;
       }
-      if (/^[0-9]$/.test(key) && livesInput.length < 2) {
-        livesInput += key;
-        livesError = '';
+      if (key === 'Enter' || key === ' ') {
+        var result = livesCount;
+        livesCount = 5;
+        return result;
       }
       return null;
+    }
+
+    function handleLivesClick(mx, my) {
+      var b = livesButtons;
+      if (b.minus && mx >= b.minus.x && mx <= b.minus.x + b.minus.w && my >= b.minus.y && my <= b.minus.y + b.minus.h) {
+        if (livesCount > MIN_LIVES) livesCount--;
+        return null;
+      }
+      if (b.plus && mx >= b.plus.x && mx <= b.plus.x + b.plus.w && my >= b.plus.y && my <= b.plus.y + b.plus.h) {
+        if (livesCount < MAX_LIVES) livesCount++;
+        return null;
+      }
+      if (b.go && mx >= b.go.x && mx <= b.go.x + b.go.w && my >= b.go.y && my <= b.go.y + b.go.h) {
+        var result = livesCount;
+        livesCount = 5;
+        return result;
+      }
+      return -1; // no button hit
     }
 
     function drawDeathOverlay(gs, w, h) {
@@ -726,6 +768,7 @@
       resize: resize,
       render: render,
       handleLivesKey: handleLivesKey,
+      handleLivesClick: handleLivesClick,
       handleCharacterKey: handleCharacterKey,
       handleCharacterClick: handleCharacterClick,
     };

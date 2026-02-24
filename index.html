@@ -115,6 +115,15 @@
           }
           return;
         }
+        if (gs.state === STATE.CHOOSE_LIVES) {
+          var livesResult = renderer.handleLivesClick(mx, my);
+          if (livesResult !== null && livesResult > 0) {
+            engine.startGame(livesResult);
+          } else {
+            renderer.render(engine.getState());
+          }
+          return;
+        }
         if (gs.state === STATE.GAME_OVER || gs.state === STATE.WIN) {
           engine.restartGame();
           return;
