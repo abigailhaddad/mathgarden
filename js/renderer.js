@@ -330,7 +330,7 @@
 
       // Number text — BRIGHT enough to read clearly
       if (isRevealed || isStart || isExit || (isDeath && gs.state === STATE.DYING) || isPastDeath || isPastSafe) {
-        var displayNum = isExit ? '\u2605' : String(num);
+        var displayNum = isExit ? '\ud83d\udeaa' : String(num);
 
         if (isDeath && gs.state === STATE.DYING) {
           ctx.fillStyle = '#ee2222';
