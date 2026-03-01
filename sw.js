@@ -1,7 +1,7 @@
 // Service Worker for Proof by Elimination
 // Cache-first strategy for offline play
 
-var CACHE_NAME = 'proof-by-elimination-v2';
+var CACHE_NAME = 'proof-by-elimination-v3';
 var ASSETS = [
   '/',
   '/index.html',

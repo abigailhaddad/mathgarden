@@ -761,6 +761,23 @@
       ctx.globalAlpha = 1;
     }
 
+    function wrapText(text, maxWidth) {
+      var words = text.split(' ');
+      var lines = [];
+      var line = '';
+      for (var i = 0; i < words.length; i++) {
+        var test = line ? line + ' ' + words[i] : words[i];
+        if (ctx.measureText(test).width > maxWidth && line) {
+          lines.push(line);
+          line = words[i];
+        } else {
+          line = test;
+        }
+      }
+      if (line) lines.push(line);
+      return lines;
+    }
+
     function drawRuleReveal(gs, w, h) {
       ctx.fillStyle = C.overlay;
       ctx.fillRect(0, 0, w, h);
@@ -771,12 +788,23 @@
       ctx.font = 'bold 20px monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('...the path revealed...', w / 2, h / 2 - 30);
+      ctx.fillText('...the path revealed...', w / 2, h / 2 - 50);
       ctx.shadowBlur = 0;
 
       ctx.fillStyle = C.overlayText;
-      ctx.font = '16px monospace';
-      ctx.fillText(gs.levelData.ruleText, w / 2, h / 2 + 10);
+      ctx.font = 'bold 16px monospace';
+      ctx.fillText(gs.levelData.ruleText, w / 2, h / 2 - 15);
+
+      // Lesson text — wrapped
+      if (gs.levelData.lesson) {
+        ctx.fillStyle = C.hudText;
+        ctx.font = '12px monospace';
+        var maxW = Math.min(w - 60, 500);
+        var lines = wrapText(gs.levelData.lesson, maxW);
+        for (var i = 0; i < lines.length; i++) {
+          ctx.fillText(lines[i], w / 2, h / 2 + 20 + i * 18);
+        }
+      }
     }
 
     var shareBtn = null;
@@ -800,37 +828,50 @@
       ctx.globalAlpha = 1;
 
       // Rule lesson — show what the rule was
+      var lessonEndY = h / 2 - 25;
       if (gs.levelData) {
         ctx.fillStyle = C.ruleText;
         ctx.shadowColor = '#5a5a00';
         ctx.shadowBlur = 6;
         ctx.font = '14px monospace';
-        ctx.fillText('The rule was:', w / 2, h / 2 - 45);
+        ctx.fillText('The rule was:', w / 2, h / 2 - 50);
         ctx.shadowBlur = 0;
         ctx.fillStyle = C.overlayText;
         ctx.font = 'bold 15px monospace';
-        ctx.fillText(gs.levelData.ruleText, w / 2, h / 2 - 25);
+        ctx.fillText(gs.levelData.ruleText, w / 2, h / 2 - 30);
+
+        // Lesson text — wrapped
+        if (gs.levelData.lesson) {
+          ctx.fillStyle = C.hudText;
+          ctx.font = '11px monospace';
+          var maxW = Math.min(w - 60, 460);
+          var lines = wrapText(gs.levelData.lesson, maxW);
+          for (var li = 0; li < lines.length; li++) {
+            ctx.fillText(lines[li], w / 2, h / 2 - 8 + li * 16);
+          }
+          lessonEndY = h / 2 - 8 + lines.length * 16 + 8;
+        }
       }
 
       // Score
       ctx.fillStyle = C.ruleText;
       ctx.font = 'bold 18px monospace';
-      ctx.fillText('Score: ' + gs.score, w / 2, h / 2 + 5);
+      ctx.fillText('Score: ' + gs.score, w / 2, lessonEndY + 10);
 
       ctx.fillStyle = C.hudTextDim;
       ctx.font = '12px monospace';
       var mult = (10 / gs.chosenLives).toFixed(1).replace(/\.0$/, '');
-      ctx.fillText(gs.currentLevel + ' levels \u00d7 ' + mult + 'x  |  ' + gs.deaths + ' death' + (gs.deaths !== 1 ? 's' : ''), w / 2, h / 2 + 25);
+      ctx.fillText(gs.currentLevel + ' levels \u00d7 ' + mult + 'x  |  ' + gs.deaths + ' death' + (gs.deaths !== 1 ? 's' : ''), w / 2, lessonEndY + 30);
 
       // High score
       var scores = window.LiarsGarden.Scores ? window.LiarsGarden.Scores.getScores() : null;
       if (scores && scores.bestScore > 0) {
         ctx.fillStyle = C.hudTextDim;
         ctx.font = '11px monospace';
-        ctx.fillText('Best score: ' + scores.bestScore, w / 2, h / 2 + 45);
+        ctx.fillText('Best score: ' + scores.bestScore, w / 2, lessonEndY + 50);
       }
 
-      var bottomY = h / 2 + 65;
+      var bottomY = lessonEndY + 70;
 
       // Share button for daily mode
       if (gs.gameMode === 'daily') {
