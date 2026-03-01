@@ -59,7 +59,7 @@
     Math.random = function() { return dailyRng(); };
     Date.now = function() { return seed; }; // Deterministic "time" for grid seeds
 
-    var levels = originalGenerate();
+    var levels = originalGenerate('daily');
 
     Math.random = savedRandom;
     Date.now = savedDateNow;
