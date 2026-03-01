@@ -535,16 +535,25 @@
   }
 
   // Generate all levels with randomized parameters
-  function generateLevels() {
+  // mode: 'campaign' (default) uses 2 easy + 3 medium + 3 hard
+  //        'daily' skips easy tier, uses 4 medium + 4 hard
+  function generateLevels(mode) {
     // Use a time-based master seed so grids vary per playthrough
     var masterSeed = Date.now();
 
     // Pick rules for each tier
-    var tier1Picks = pickRules(TIER1_RULES, 2);
-    var tier2Picks = pickRules(TIER2_RULES, 3);
-    var tier3Picks = pickRules(TIER3_RULES, 3);
-
-    var ruleFunctions = tier1Picks.concat(tier2Picks).concat(tier3Picks);
+    var ruleFunctions;
+    if (mode === 'daily') {
+      // Daily puzzles skip Tier 1 (tutorial rules) for more interesting play
+      var tier2Picks = pickRules(TIER2_RULES, 4);
+      var tier3Picks = pickRules(TIER3_RULES, 4);
+      ruleFunctions = tier2Picks.concat(tier3Picks);
+    } else {
+      var tier1Picks = pickRules(TIER1_RULES, 2);
+      var tier2Picks = pickRules(TIER2_RULES, 3);
+      var tier3Picks = pickRules(TIER3_RULES, 3);
+      ruleFunctions = tier1Picks.concat(tier2Picks).concat(tier3Picks);
+    }
 
     var rules = ruleFunctions.map(function(factory, i) {
       var rule = factory();
