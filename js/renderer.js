@@ -568,10 +568,12 @@
 
       // Daily button
       var dailyPlayed = window.LiarsGarden.Daily && window.LiarsGarden.Daily.hasPlayedToday();
-      var dailyLabel = dailyPlayed ? 'DAILY (DONE)' : 'DAILY PUZZLE';
+      var dailyLabel = dailyPlayed ? 'DAILY \u2713 DONE' : 'DAILY PUZZLE';
       var dailyDesc = window.LiarsGarden.Daily ? window.LiarsGarden.Daily.todayKey() : '';
-      var dailyPulse = 0.6 + 0.15 * Math.sin(time * 2.5 + 1);
+      var dailyPulse = dailyPlayed ? 0.2 : 0.6 + 0.15 * Math.sin(time * 2.5 + 1);
+      if (dailyPlayed) ctx.globalAlpha = 0.4;
       drawMenuButton(w / 2 - btnW / 2, startY + btnH + gap, btnW, btnH, dailyLabel, 'Same puzzle for everyone \u00b7 ' + dailyDesc, dailyPulse, time);
+      if (dailyPlayed) ctx.globalAlpha = 1;
       modeButtons.push({ x: w / 2 - btnW / 2, y: startY + btnH + gap, w: btnW, h: btnH, mode: 'daily' });
 
       // High scores summary
@@ -615,9 +617,13 @@
       ctx.globalAlpha = 1;
     }
 
+    function isDailyBlocked() {
+      return window.LiarsGarden.Daily && window.LiarsGarden.Daily.hasPlayedToday();
+    }
+
     function handleModeKey(key) {
       if (key === '1' || key === 'c' || key === 'C') return 'campaign';
-      if (key === '2' || key === 'd' || key === 'D') return 'daily';
+      if (key === '2' || key === 'd' || key === 'D') return isDailyBlocked() ? null : 'daily';
       if (key === 'ArrowUp' || key === 'ArrowDown') return null; // just re-render
       if (key === 'Enter' || key === ' ') return 'campaign'; // default
       return null;
@@ -627,6 +633,7 @@
       for (var i = 0; i < modeButtons.length; i++) {
         var b = modeButtons[i];
         if (mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) {
+          if (b.mode === 'daily' && isDailyBlocked()) return null;
           return b.mode;
         }
       }
