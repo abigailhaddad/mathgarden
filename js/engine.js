@@ -11,6 +11,7 @@
   const STATE = {
     TITLE: 'title',
     CHOOSE_CHARACTER: 'choose_character',
+    CHOOSE_MODE: 'choose_mode',
     CHOOSE_LIVES: 'choose_lives',
     PLAYING: 'playing',
     DYING: 'dying',
@@ -18,6 +19,12 @@
     GAME_OVER: 'game_over',
     WIN: 'win',
   };
+
+  const DIFFICULTIES = [
+    { label: 'Easy', lives: 10, description: '10 lives' },
+    { label: 'Medium', lives: 5, description: '5 lives' },
+    { label: 'Hard', lives: 3, description: '3 lives' },
+  ];
 
   const CHARACTERS = [
     { id: 'dog', emoji: '\ud83d\udc36', name: 'Dog' },
@@ -53,8 +60,17 @@
     let deathNumber = 0;
     let deathTiles = [];
     let safeWalked = [];
+    let warnedTiles = [];
     let chosenCharacter = CHARACTERS[0];
+    let gameMode = 'campaign'; // 'campaign' or 'daily'
     let onStateChange = null;
+    let animating = false;
+    let animFromRow = 0;
+    let animFromCol = 0;
+    let animToRow = 0;
+    let animToCol = 0;
+    let animStart = 0;
+    let animDuration = 100; // ms
 
     var levels = null;
 
@@ -89,6 +105,17 @@
         }
       }
 
+      // Find an unsafe adjacent tile to pre-reveal as a warning (red)
+      warnedTiles = [];
+      for (const [dr, dc] of dirs) {
+        const nr = dr, nc = dc;
+        if (nr >= 0 && nr < lvl.rows && nc >= 0 && nc < lvl.cols && !lvl.isSafe(lvl.grid[nr][nc])) {
+          revealed[nr][nc] = true;
+          warnedTiles.push({row: nr, col: nc});
+          break;
+        }
+      }
+
       // Reveal neighbors of start
       revealAdjacent(0, 0);
 
@@ -107,7 +134,7 @@
     }
 
     function move(dr, dc) {
-      if (state !== STATE.PLAYING) return;
+      if (state !== STATE.PLAYING || animating) return;
 
       const lvl = level();
       const nr = playerRow + dr;
@@ -125,11 +152,15 @@
         deathTiles.push({row: nr, col: nc});
         revealed[nr][nc] = true;
         state = STATE.DYING;
+        if (window.LiarsGarden.Sound) window.LiarsGarden.Sound.death();
         notify();
 
         setTimeout(() => {
           if (lives <= 0) {
             state = STATE.GAME_OVER;
+            if (window.LiarsGarden.Sound) window.LiarsGarden.Sound.gameOver();
+            var dailyKey = gameMode === 'daily' ? window.LiarsGarden.Daily.todayKey() : null;
+            if (window.LiarsGarden.Scores) window.LiarsGarden.Scores.recordGameEnd(calcScore(currentLevel, deaths, chosenLives), deaths, currentLevel, levels.length, dailyKey);
             notify();
           } else {
             initLevel();
@@ -138,29 +169,51 @@
         return;
       }
 
+      // Start slide animation
+      animFromRow = playerRow;
+      animFromCol = playerCol;
+      animToRow = nr;
+      animToCol = nc;
+      animStart = Date.now();
+      animating = true;
+
       playerRow = nr;
       playerCol = nc;
       walked[nr][nc] = true;
       safeWalked.push({row: nr, col: nc});
       revealAdjacent(nr, nc);
 
-      if (nr === lvl.rows - 1 && nc === lvl.cols - 1) {
-        state = STATE.RULE_REVEAL;
-        notify();
+      if (window.LiarsGarden.Sound) window.LiarsGarden.Sound.safeStep();
 
-        setTimeout(() => {
-          currentLevel++;
-          deathTiles = [];
-          safeWalked = [];
-          if (currentLevel >= levels.length) {
-            state = STATE.WIN;
-            notify();
-          } else {
-            initLevel();
-          }
-        }, RULE_REVEAL_DELAY);
-        return;
-      }
+      var isExit = (nr === lvl.rows - 1 && nc === lvl.cols - 1);
+
+      setTimeout(function() {
+        animating = false;
+
+        if (isExit) {
+          state = STATE.RULE_REVEAL;
+          if (window.LiarsGarden.Sound) window.LiarsGarden.Sound.levelComplete();
+          notify();
+
+          setTimeout(() => {
+            currentLevel++;
+            deathTiles = [];
+            safeWalked = [];
+            if (currentLevel >= levels.length) {
+              state = STATE.WIN;
+              if (window.LiarsGarden.Sound) window.LiarsGarden.Sound.win();
+              var dailyKeyWin = gameMode === 'daily' ? window.LiarsGarden.Daily.todayKey() : null;
+              if (window.LiarsGarden.Scores) window.LiarsGarden.Scores.recordGameEnd(calcScore(currentLevel, deaths, chosenLives), deaths, currentLevel, levels.length, dailyKeyWin);
+              notify();
+            } else {
+              initLevel();
+            }
+          }, RULE_REVEAL_DELAY);
+          return;
+        }
+
+        notify();
+      }, animDuration);
 
       notify();
     }
@@ -187,6 +240,12 @@
 
     function selectCharacter(index) {
       chosenCharacter = CHARACTERS[index] || CHARACTERS[0];
+      state = STATE.CHOOSE_MODE;
+      notify();
+    }
+
+    function chooseMode(mode) {
+      gameMode = mode;
       state = STATE.CHOOSE_LIVES;
       notify();
     }
@@ -203,7 +262,11 @@
       currentLevel = 0;
       deathTiles = [];
       safeWalked = [];
-      levels = window.LiarsGarden.generateLevels();
+      if (gameMode === 'daily') {
+        levels = window.LiarsGarden.Daily.generateDailyPuzzle();
+      } else {
+        levels = window.LiarsGarden.generateLevels();
+      }
       initLevel();
     }
 
@@ -215,7 +278,8 @@
       return {
         state: state,
         currentLevel: currentLevel,
-        levelData: (state === STATE.TITLE || state === STATE.CHOOSE_CHARACTER || state === STATE.CHOOSE_LIVES) ? null : level(),
+        gameMode: gameMode,
+        levelData: (state === STATE.TITLE || state === STATE.CHOOSE_CHARACTER || state === STATE.CHOOSE_MODE || state === STATE.CHOOSE_LIVES) ? null : level(),
         character: chosenCharacter,
         lives: lives,
         chosenLives: chosenLives,
@@ -230,6 +294,15 @@
         deathNumber: deathNumber,
         deathTiles: deathTiles,
         safeWalked: safeWalked,
+        warnedTiles: warnedTiles,
+        totalLevels: levels ? levels.length : 8,
+        animating: animating,
+        animFromRow: animFromRow,
+        animFromCol: animFromCol,
+        animToRow: animToRow,
+        animToCol: animToCol,
+        animStart: animStart,
+        animDuration: animDuration,
       };
     }
 
@@ -237,6 +310,7 @@
       showTitle: showTitle,
       chooseCharacter: chooseCharacter,
       selectCharacter: selectCharacter,
+      chooseMode: chooseMode,
       chooseLives: chooseLives,
       startGame: startGame,
       initLevel: initLevel,
@@ -255,4 +329,5 @@
   window.LiarsGarden.createEngine = createEngine;
   window.LiarsGarden.STATE = STATE;
   window.LiarsGarden.CHARACTERS = CHARACTERS;
+  window.LiarsGarden.DIFFICULTIES = DIFFICULTIES;
 })();

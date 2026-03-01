@@ -37,83 +37,7 @@
     return s * s === n;
   }
 
-  // Rule templates — each returns {name, hint, ruleText, fn}
-  // Parameters are chosen randomly so each playthrough differs.
-
-  function ruleExactNumber() {
-    var num = pick([3, 5, 7, 11, 13, 17, 19, 23]);
-    return {
-      name: "Tunnel I",
-      hint: "Something about this number...",
-      ruleText: "Only the number " + num + " is safe.",
-      fn: function(n) { return n === 0 || n === num; }
-    };
-  }
-
-  function ruleEvenOdd() {
-    // Randomly even or odd
-    var isEven = Math.random() < 0.5;
-    if (isEven) {
-      return {
-        id: 'even',
-        name: "Tunnel II",
-        hint: "There's a pattern here...",
-        ruleText: "Even numbers are safe.",
-        fn: function(n) { return n === 0 || n % 2 === 0; }
-      };
-    } else {
-      return {
-        id: 'odd',
-        name: "Tunnel II",
-        hint: "There's a pattern here...",
-        ruleText: "Odd numbers are safe.",
-        fn: function(n) { return n === 0 || n % 2 === 1; }
-      };
-    }
-  }
-
-  function ruleOppositeEvenOdd(prevRule) {
-    // Whatever level 2 wasn't
-    var prevWasEven = prevRule.id === 'even';
-    if (prevWasEven) {
-      return {
-        id: 'odd',
-        name: "Tunnel III",
-        hint: "The pattern has shifted...",
-        ruleText: "Odd numbers are safe.",
-        fn: function(n) { return n === 0 || n % 2 === 1; }
-      };
-    } else {
-      return {
-        id: 'even',
-        name: "Tunnel III",
-        hint: "The pattern has shifted...",
-        ruleText: "Even numbers are safe.",
-        fn: function(n) { return n === 0 || n % 2 === 0; }
-      };
-    }
-  }
-
-  function ruleDivisible() {
-    var d = pick([3, 4, 5, 6]);
-    return {
-      name: "Tunnel IV",
-      hint: "Count carefully...",
-      ruleText: "Multiples of " + d + " are safe.",
-      fn: function(n) { return n === 0 || n % d === 0; }
-    };
-  }
-
-  function ruleSmallNumbers() {
-    var threshold = pick([15, 20, 25, 30]);
-    return {
-      name: "Tunnel V",
-      hint: "How high dare you go?",
-      ruleText: "Numbers " + threshold + " or less are safe.",
-      fn: function(n) { return n === 0 || n <= threshold; }
-    };
-  }
-
+  // Math helpers for rules
   function isPerfectCube(n) {
     if (n <= 0) return false;
     var c = Math.round(Math.cbrt(n));
@@ -124,63 +48,243 @@
     return n > 0 && (n & (n - 1)) === 0;
   }
 
-  function rulePerfectSquaresVariant() {
-    var variant = pick(['squares', 'cubes', 'pow2']);
-    if (variant === 'cubes') {
-      return {
-        name: "Tunnel VI",
-        hint: "What makes a number special?",
-        ruleText: "Perfect cubes are safe.",
-        fn: function(n) { return n === 0 || isPerfectCube(n); }
-      };
-    }
-    if (variant === 'pow2') {
-      return {
-        name: "Tunnel VI",
-        hint: "What makes a number special?",
-        ruleText: "Powers of 2 are safe.",
-        fn: function(n) { return n === 0 || isPowerOf2(n); }
-      };
-    }
-    return {
-      name: "Tunnel VI",
-      hint: "What makes a number special?",
-      ruleText: "Perfect squares are safe.",
-      fn: function(n) { return n === 0 || isPerfectSquare(n); }
-    };
+  function digitSum(n) {
+    var s = 0;
+    while (n > 0) { s += n % 10; n = Math.floor(n / 10); }
+    return s;
   }
 
-  function rulePrimesVariant() {
-    var variant = pick(['primes', 'composites']);
-    if (variant === 'composites') {
-      return {
-        name: "Tunnel VII",
-        hint: "Not all numbers are created equal...",
+  function digitProduct(n) {
+    var p = 1;
+    while (n > 0) { p *= n % 10; n = Math.floor(n / 10); }
+    return p;
+  }
+
+  function numDigits(n) {
+    return String(n).length;
+  }
+
+  function hasDigit(n, d) {
+    return String(n).indexOf(String(d)) !== -1;
+  }
+
+  function isFibonacci(n) {
+    // A number is Fibonacci if 5n^2+4 or 5n^2-4 is a perfect square
+    if (n <= 0) return false;
+    var a = 5 * n * n + 4;
+    var b = 5 * n * n - 4;
+    var sa = Math.round(Math.sqrt(a));
+    var sb = Math.round(Math.sqrt(b));
+    return sa * sa === a || sb * sb === b;
+  }
+
+  function isTriangular(n) {
+    // n = k(k+1)/2 => k^2+k-2n=0 => discriminant = 1+8n
+    if (n <= 0) return false;
+    var disc = 1 + 8 * n;
+    var s = Math.round(Math.sqrt(disc));
+    return s * s === disc && (s - 1) % 2 === 0;
+  }
+
+  function isPalindrome(n) {
+    var s = String(n);
+    return s === s.split('').reverse().join('');
+  }
+
+  // ---- RULE POOL ----
+  // Each rule factory returns {name, hint, ruleText, lesson, fn, difficulty}
+  // difficulty: 1 = easy, 2 = medium, 3 = hard
+  // lesson: 2-line explanation shown on level complete / game over
+  // The fn always treats 0 as safe (start/exit tiles).
+
+  // -- Tier 1: Warm-up rules (easy) --
+  var TIER1_RULES = [
+    function() {
+      var num = pick([3, 5, 7, 11, 13, 17, 19, 23]);
+      return { hint: "Something about this number...",
+        ruleText: "Only the number " + num + " is safe.",
+        lesson: "Every safe tile had the same number: " + num + ". Compare the green and red tiles near the start — if they all share one value, that's your answer.",
+        difficulty: 1, fn: function(n) { return n === 0 || n === num; } };
+    },
+    function() {
+      return { hint: "There's a pattern here...",
+        ruleText: "Even numbers are safe.",
+        lesson: "Even numbers are divisible by 2: 2, 4, 6, 8, 10... Quick check: if the last digit is 0, 2, 4, 6, or 8, it's even.",
+        difficulty: 1, fn: function(n) { return n === 0 || n % 2 === 0; } };
+    },
+    function() {
+      return { hint: "There's a pattern here...",
+        ruleText: "Odd numbers are safe.",
+        lesson: "Odd numbers aren't divisible by 2: 1, 3, 5, 7, 9, 11... Quick check: if the last digit is 1, 3, 5, 7, or 9, it's odd.",
+        difficulty: 1, fn: function(n) { return n === 0 || n % 2 === 1; } };
+    },
+    function() {
+      var threshold = pick([15, 20, 25, 30]);
+      return { hint: "How high dare you go?",
+        ruleText: "Numbers " + threshold + " or less are safe.",
+        lesson: "Every number at or below " + threshold + " was safe. Compare safe and unsafe tiles to find the cutoff — safe numbers cluster low, danger numbers are high.",
+        difficulty: 1, fn: function(n) { return n === 0 || n <= threshold; } };
+    },
+    function() {
+      var threshold = pick([50, 60, 70, 80]);
+      return { hint: "Only the bold survive...",
+        ruleText: "Numbers greater than " + threshold + " are safe.",
+        lesson: "Only numbers above " + threshold + " were safe. The small numbers were the trap — the higher the number, the safer you were.",
+        difficulty: 1, fn: function(n) { return n === 0 || n > threshold; } };
+    },
+  ];
+
+  // -- Tier 2: Pattern rules (medium) --
+  var TIER2_RULES = [
+    function() {
+      var d = pick([3, 4, 5, 6, 7]);
+      var examples = [];
+      for (var i = d; i <= 100 && examples.length < 5; i += d) examples.push(i);
+      return { hint: "Count carefully...",
+        ruleText: "Multiples of " + d + " are safe.",
+        lesson: "Multiples of " + d + " are numbers you hit counting by " + d + "s: " + examples.join(", ") + "... Divide any number by " + d + " — if there's no remainder, it's safe.",
+        difficulty: 2, fn: function(n) { return n === 0 || n % d === 0; } };
+    },
+    function() {
+      return { hint: "What makes a number special?",
+        ruleText: "Perfect squares are safe.",
+        lesson: "Perfect squares are numbers times themselves: 1, 4, 9, 16, 25, 36, 49, 64, 81, 100. That's 1x1, 2x2, 3x3, and so on. There are exactly 10 of them from 1-100.",
+        difficulty: 2, fn: function(n) { return n === 0 || isPerfectSquare(n); } };
+    },
+    function() {
+      return { hint: "Not all numbers are created equal...",
+        ruleText: "Prime numbers are safe.",
+        lesson: "Primes are only divisible by 1 and themselves: 2, 3, 5, 7, 11, 13, 17, 19, 23, 29... Note: 1 is NOT prime, and 2 is the only even prime.",
+        difficulty: 2, fn: function(n) { return n === 0 || isPrime(n); } };
+    },
+    function() {
+      return { hint: "Not all numbers are created equal...",
         ruleText: "Composite numbers are safe.",
-        fn: function(n) { return n === 0 || (n > 1 && !isPrime(n)); }
-      };
-    }
-    return {
-      name: "Tunnel VII",
-      hint: "Not all numbers are created equal...",
-      ruleText: "Prime numbers are safe.",
-      fn: function(n) { return n === 0 || isPrime(n); }
-    };
-  }
+        lesson: "Composites have factors besides 1 and themselves: 4, 6, 8, 9, 10, 12... They're the opposite of primes. Most numbers are composite — primes are the rare ones.",
+        difficulty: 2, fn: function(n) { return n === 0 || (n > 1 && !isPrime(n)); } };
+    },
+    function() {
+      var d = pick([1, 2, 3, 5, 7, 9]);
+      var examples = [];
+      for (var i = d; i <= 100 && examples.length < 4; i += 10) examples.push(i);
+      return { hint: "Look at the ones place...",
+        ruleText: "Numbers ending in " + d + " are safe.",
+        lesson: "Only the last digit matters: " + examples.join(", ") + "... Ignore the tens place entirely. A number's last digit repeats in a cycle of 10.",
+        difficulty: 2, fn: function(n) { return n === 0 || n % 10 === d; } };
+    },
+    function() {
+      var lo = pick([20, 30, 40]);
+      var hi = lo + pick([20, 25, 30]);
+      return { hint: "Stay in the zone...",
+        ruleText: "Numbers between " + lo + " and " + hi + " are safe.",
+        lesson: "Safe numbers fell in the range " + lo + "-" + hi + ". Compare the green tile and red tile near the start — one is inside the range, the other outside. Find the boundaries.",
+        difficulty: 2, fn: function(n) { return n === 0 || (n >= lo && n <= hi); } };
+    },
+    function() {
+      var d = pick([3, 5, 7, 9]);
+      return { hint: "Look at each digit...",
+        ruleText: "Numbers containing the digit " + d + " are safe.",
+        lesson: "Any number with a " + d + " anywhere in it was safe. 3" + d + ", " + d + "1, " + d + d + " — the digit can appear in any position. Read each number digit by digit.",
+        difficulty: 2, fn: function(n) { return n === 0 || hasDigit(n, d); } };
+    },
+    function() {
+      return { hint: "Two digits are better than one...",
+        ruleText: "Two-digit numbers are safe.",
+        lesson: "Numbers from 10 to 99 were safe. Single digits (1-9) and 100 were dangerous. Count the digits — if there are exactly two, step on it.",
+        difficulty: 2, fn: function(n) { return n === 0 || (n >= 10 && n <= 99); } };
+    },
+  ];
 
-  function ruleRemainder() {
-    var divisor = pick([5, 6, 7, 8]);
-    var maxRem = pick([0, 1]);
-    var remText = maxRem === 0
-      ? "divisible by " + divisor
-      : "n % " + divisor + " is 0 or 1";
-    return {
-      name: "Tunnel VIII",
-      hint: "What remains?",
-      ruleText: "Numbers where " + remText + " are safe.",
-      fn: function(n) { return n === 0 || n % divisor <= maxRem; }
-    };
-  }
+  // -- Tier 3: Tricky rules (hard) --
+  var TIER3_RULES = [
+    function() {
+      return { hint: "What makes a number special?",
+        ruleText: "Powers of 2 are safe.",
+        lesson: "Powers of 2 double each time: 1, 2, 4, 8, 16, 32, 64. That's 7 safe numbers from 1-100. Each one is twice the last.",
+        difficulty: 3, fn: function(n) { return n === 0 || isPowerOf2(n); } };
+    },
+    function() {
+      return { hint: "Nature's sequence...",
+        ruleText: "Fibonacci numbers are safe.",
+        lesson: "Each Fibonacci number is the sum of the two before it: 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89. Start with 1,1 then keep adding: 1+1=2, 1+2=3, 2+3=5...",
+        difficulty: 3, fn: function(n) { return n === 0 || isFibonacci(n); } };
+    },
+    function() {
+      return { hint: "Stacking stones...",
+        ruleText: "Triangular numbers are safe.",
+        lesson: "Triangular numbers are running totals: 1, 3, 6, 10, 15, 21, 28, 36, 45, 55, 66, 78, 91. Like stacking rows: 1, then 1+2, then 1+2+3, and so on.",
+        difficulty: 3, fn: function(n) { return n === 0 || isTriangular(n); } };
+    },
+    function() {
+      var divisor = pick([5, 6, 7, 8, 9]);
+      var maxRem = pick([0, 1, 2]);
+      var remText = maxRem === 0
+        ? "divisible by " + divisor
+        : "remainder \u2264 " + maxRem + " when divided by " + divisor;
+      var lessonExamples = [];
+      for (var i = 1; i <= 30 && lessonExamples.length < 6; i++) {
+        if (i % divisor <= maxRem) lessonExamples.push(i);
+      }
+      return { hint: "What remains?",
+        ruleText: "Numbers " + remText + " are safe.",
+        lesson: "Divide by " + divisor + " and check the remainder. Safe if remainder is " + (maxRem === 0 ? "0" : "0-" + maxRem) + ". Examples: " + lessonExamples.join(", ") + "... The pattern repeats every " + divisor + " numbers.",
+        difficulty: 3, fn: function(n) { return n === 0 || n % divisor <= maxRem; } };
+    },
+    function() {
+      var target = pick([5, 7, 8, 9, 10, 11, 12]);
+      return { hint: "Sum it up...",
+        ruleText: "Numbers whose digits sum to " + target + " or less are safe.",
+        lesson: "Add a number's digits together: 47 becomes 4+7=11, 83 becomes 8+3=11. If the sum is " + target + " or less, it's safe. Low digits and small numbers tend to be safe.",
+        difficulty: 3, fn: function(n) { return n === 0 || digitSum(n) <= target; } };
+    },
+    function() {
+      return { hint: "Mirror, mirror...",
+        ruleText: "Palindrome numbers are safe.",
+        lesson: "Palindromes read the same forwards and backwards. All single digits (1-9) plus 11, 22, 33, 44, 55, 66, 77, 88, 99. That's 18 safe numbers from 1-99.",
+        difficulty: 3, fn: function(n) { return n === 0 || isPalindrome(n); } };
+    },
+    function() {
+      var a = pick([3, 4, 5]);
+      var b = pick([7, 8, 9, 10, 11]);
+      while (b === a) b = pick([7, 8, 9, 10, 11]);
+      return { hint: "Two paths diverge...",
+        ruleText: "Multiples of " + a + " or " + b + " are safe.",
+        lesson: "A number is safe if it divides evenly by " + a + " OR by " + b + " (or both). E.g. " + (a*2) + " works (multiple of " + a + "), " + (b*2) + " works (multiple of " + b + "). Two separate patterns overlaid.",
+        difficulty: 3, fn: function(n) { return n === 0 || n % a === 0 || n % b === 0; } };
+    },
+    function() {
+      return { hint: "What makes a number special?",
+        ruleText: "Perfect cubes are safe.",
+        lesson: "Perfect cubes are a number times itself times itself: 1 (1\u00b3), 8 (2\u00b3), 27 (3\u00b3), 64 (4\u00b3). Only 4 safe numbers from 1-100. Very rare — that's the challenge.",
+        difficulty: 3, fn: function(n) { return n === 0 || isPerfectCube(n); } };
+    },
+    function() {
+      var d = pick([3, 7, 9]);
+      var examples = [];
+      for (var i = 1; i <= 50 && examples.length < 5; i++) {
+        if (digitSum(i) % d === 0) examples.push(i + '(' + digitSum(i) + ')');
+      }
+      return { hint: "Break it down...",
+        ruleText: "Numbers whose digit sum is divisible by " + d + " are safe.",
+        lesson: "Add the digits, then check if the sum divides by " + d + ". Examples: " + examples.join(", ") + ". Fun fact: a number is divisible by 9 iff its digit sum is too.",
+        difficulty: 3, fn: function(n) { return n === 0 || digitSum(n) % d === 0; } };
+    },
+    function() {
+      return { hint: "Repeat yourself...",
+        ruleText: "Numbers with repeated digits are safe.",
+        lesson: "Any number where a digit appears more than once: 11, 22, 33, 44, 55, 66, 77, 88, 99, 100. Single-digit numbers have no repeats, so 1-9 are all unsafe.",
+        difficulty: 3, fn: function(n) {
+          if (n === 0) return true;
+          var s = String(n);
+          for (var i = 0; i < s.length; i++) {
+            for (var j = i + 1; j < s.length; j++) {
+              if (s[i] === s[j]) return true;
+            }
+          }
+          return false;
+        } };
+    },
+  ];
 
   // Generate a number that satisfies the rule
   function safeNumber(ruleFn, rng) {
@@ -396,29 +500,62 @@
     return grid;
   }
 
-  // Grid sizes per level
+  // Grid sizes per level — scales up as difficulty increases
   var GRID_SIZES = [
-    [6, 6], [7, 7], [7, 7], [8, 8],
-    [8, 8], [9, 9], [9, 9], [9, 9],
+    [6, 6], [6, 6], [7, 7], [7, 7],
+    [8, 8], [8, 8], [9, 9], [9, 9],
   ];
+
+  // Level structure: 2 easy, 3 medium, 3 hard
+  var LEVEL_TIERS = [1, 1, 2, 2, 2, 3, 3, 3];
+  var TUNNEL_NAMES = [
+    "Tunnel I", "Tunnel II", "Tunnel III", "Tunnel IV",
+    "Tunnel V", "Tunnel VI", "Tunnel VII", "Tunnel VIII",
+  ];
+
+  // Pick N unique rules from a pool
+  function pickRules(pool, count, rng) {
+    var shuffled = pool.slice();
+    // Fisher-Yates with rng
+    for (var i = shuffled.length - 1; i > 0; i--) {
+      var j = Math.floor((rng || Math.random)() * (i + 1));
+      var tmp = shuffled[i]; shuffled[i] = shuffled[j]; shuffled[j] = tmp;
+    }
+    return shuffled.slice(0, count);
+  }
+
+  // Check a rule has enough safe numbers to make a viable grid
+  function ruleIsViable(ruleFn) {
+    var safeCount = 0;
+    for (var i = 1; i <= 100; i++) {
+      if (ruleFn(i)) safeCount++;
+    }
+    // Need at least 5 safe numbers for path carving to work
+    return safeCount >= 5;
+  }
 
   // Generate all levels with randomized parameters
   function generateLevels() {
-    // Pick random parameters for each rule
-    var rule2 = ruleEvenOdd();
-    var rules = [
-      ruleExactNumber(),
-      rule2,
-      ruleOppositeEvenOdd(rule2),
-      ruleDivisible(),
-      ruleSmallNumbers(),
-      rulePerfectSquaresVariant(),
-      rulePrimesVariant(),
-      ruleRemainder(),
-    ];
-
     // Use a time-based master seed so grids vary per playthrough
     var masterSeed = Date.now();
+
+    // Pick rules for each tier
+    var tier1Picks = pickRules(TIER1_RULES, 2);
+    var tier2Picks = pickRules(TIER2_RULES, 3);
+    var tier3Picks = pickRules(TIER3_RULES, 3);
+
+    var ruleFunctions = tier1Picks.concat(tier2Picks).concat(tier3Picks);
+
+    var rules = ruleFunctions.map(function(factory, i) {
+      var rule = factory();
+      // Retry if rule isn't viable (too few safe numbers)
+      for (var attempt = 0; attempt < 10; attempt++) {
+        if (ruleIsViable(rule.fn)) break;
+        rule = factory();
+      }
+      rule.name = TUNNEL_NAMES[i];
+      return rule;
+    });
 
     var levels = rules.map(function(rule, i) {
       var size = GRID_SIZES[i];
@@ -428,6 +565,7 @@
         name: rule.name,
         hint: rule.hint,
         ruleText: rule.ruleText,
+        lesson: rule.lesson,
         rows: rows,
         cols: cols,
         grid: grid,
@@ -439,11 +577,7 @@
     levels.forEach(function(lvl, i) {
       for (var attempt = 0; attempt < 20; attempt++) {
         if (isSolvable(lvl.grid, lvl.isSafe)) break;
-        console.warn('Level ' + (i + 1) + ' ("' + lvl.name + '") not solvable, retrying (attempt ' + (attempt + 1) + ')...');
         lvl.grid = buildGrid(lvl.rows, lvl.cols, lvl.isSafe, masterSeed + i * 1000 + attempt * 37 + 7);
-      }
-      if (!isSolvable(lvl.grid, lvl.isSafe)) {
-        console.error('Level ' + (i + 1) + ' ("' + lvl.name + '") could not be made solvable!');
       }
     });
 
