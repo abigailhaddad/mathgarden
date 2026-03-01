@@ -60,6 +60,7 @@
     let deathNumber = 0;
     let deathTiles = [];
     let safeWalked = [];
+    let warnedTiles = [];
     let chosenCharacter = CHARACTERS[0];
     let gameMode = 'campaign'; // 'campaign' or 'daily'
     let onStateChange = null;
@@ -100,6 +101,17 @@
         if (nr >= 0 && nr < lvl.rows && nc >= 0 && nc < lvl.cols && lvl.isSafe(lvl.grid[nr][nc])) {
           revealed[nr][nc] = true;
           walked[nr][nc] = true;
+          break;
+        }
+      }
+
+      // Find an unsafe adjacent tile to pre-reveal as a warning (red)
+      warnedTiles = [];
+      for (const [dr, dc] of dirs) {
+        const nr = dr, nc = dc;
+        if (nr >= 0 && nr < lvl.rows && nc >= 0 && nc < lvl.cols && !lvl.isSafe(lvl.grid[nr][nc])) {
+          revealed[nr][nc] = true;
+          warnedTiles.push({row: nr, col: nc});
           break;
         }
       }
@@ -282,6 +294,7 @@
         deathNumber: deathNumber,
         deathTiles: deathTiles,
         safeWalked: safeWalked,
+        warnedTiles: warnedTiles,
         totalLevels: levels ? levels.length : 8,
         animating: animating,
         animFromRow: animFromRow,

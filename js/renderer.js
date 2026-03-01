@@ -406,6 +406,7 @@
       var isRevealed = gs.revealed && gs.revealed[r][c];
       var isPastDeath = gs.deathTiles && gs.deathTiles.some(function(d) { return d.row === r && d.col === c; });
       var isPastSafe = gs.safeWalked && gs.safeWalked.some(function(d) { return d.row === r && d.col === c; });
+      var isWarned = gs.warnedTiles && gs.warnedTiles.some(function(d) { return d.row === r && d.col === c; });
 
       var bg, border;
 
@@ -413,6 +414,9 @@
         bg = C.death;
         border = C.deathBorder;
       } else if (isPastDeath) {
+        bg = '#2a0808';
+        border = '#661a1a';
+      } else if (isWarned) {
         bg = '#2a0808';
         border = '#661a1a';
       } else if (isExit) {
@@ -461,14 +465,14 @@
       }
 
       // Number text — BRIGHT enough to read clearly
-      if (isRevealed || isStart || isExit || (isDeath && gs.state === STATE.DYING) || isPastDeath || isPastSafe) {
+      if (isRevealed || isStart || isExit || (isDeath && gs.state === STATE.DYING) || isPastDeath || isPastSafe || isWarned) {
         var displayNum = isExit ? '\ud83d\udeaa' : String(num);
 
         if (isDeath && gs.state === STATE.DYING) {
           ctx.fillStyle = '#ee2222';
           ctx.shadowColor = '#ff0000';
           ctx.shadowBlur = 15;
-        } else if (isPastDeath) {
+        } else if (isPastDeath || isWarned) {
           ctx.fillStyle = '#cc4444';
           ctx.shadowColor = '#880000';
           ctx.shadowBlur = 6;
@@ -791,29 +795,42 @@
       ctx.font = 'bold 36px monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('GAME OVER', w / 2, h / 2 - 60);
+      ctx.fillText('GAME OVER', w / 2, h / 2 - 80);
       ctx.shadowBlur = 0;
       ctx.globalAlpha = 1;
+
+      // Rule lesson — show what the rule was
+      if (gs.levelData) {
+        ctx.fillStyle = C.ruleText;
+        ctx.shadowColor = '#5a5a00';
+        ctx.shadowBlur = 6;
+        ctx.font = '14px monospace';
+        ctx.fillText('The rule was:', w / 2, h / 2 - 45);
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = C.overlayText;
+        ctx.font = 'bold 15px monospace';
+        ctx.fillText(gs.levelData.ruleText, w / 2, h / 2 - 25);
+      }
 
       // Score
       ctx.fillStyle = C.ruleText;
       ctx.font = 'bold 18px monospace';
-      ctx.fillText('Score: ' + gs.score, w / 2, h / 2 - 20);
+      ctx.fillText('Score: ' + gs.score, w / 2, h / 2 + 5);
 
       ctx.fillStyle = C.hudTextDim;
       ctx.font = '12px monospace';
       var mult = (10 / gs.chosenLives).toFixed(1).replace(/\.0$/, '');
-      ctx.fillText(gs.currentLevel + ' levels \u00d7 ' + mult + 'x  |  ' + gs.deaths + ' death' + (gs.deaths !== 1 ? 's' : ''), w / 2, h / 2 + 5);
+      ctx.fillText(gs.currentLevel + ' levels \u00d7 ' + mult + 'x  |  ' + gs.deaths + ' death' + (gs.deaths !== 1 ? 's' : ''), w / 2, h / 2 + 25);
 
       // High score
       var scores = window.LiarsGarden.Scores ? window.LiarsGarden.Scores.getScores() : null;
       if (scores && scores.bestScore > 0) {
         ctx.fillStyle = C.hudTextDim;
         ctx.font = '11px monospace';
-        ctx.fillText('Best score: ' + scores.bestScore, w / 2, h / 2 + 25);
+        ctx.fillText('Best score: ' + scores.bestScore, w / 2, h / 2 + 45);
       }
 
-      var bottomY = h / 2 + 45;
+      var bottomY = h / 2 + 65;
 
       // Share button for daily mode
       if (gs.gameMode === 'daily') {
