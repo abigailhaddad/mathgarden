@@ -23,6 +23,9 @@
 
   <script src="js/levels.js"></script>
   <script src="js/engine.js"></script>
+  <script src="js/sound.js"></script>
+  <script src="js/scores.js"></script>
+  <script src="js/daily.js"></script>
   <script src="js/renderer.js"></script>
   <script>
     (function() {
@@ -45,12 +48,19 @@
         renderer.render(gs);
       };
 
+      // Resume audio on any user interaction
+      function resumeAudio() {
+        if (LiarsGarden.Sound) LiarsGarden.Sound.resume();
+      }
+
       // Keyboard
       document.addEventListener('keydown', function(e) {
+        resumeAudio();
         var gs = engine.getState();
 
         // Title screen: any key starts choosing character
         if (gs.state === STATE.TITLE) {
+          if (LiarsGarden.Sound) LiarsGarden.Sound.uiClick();
           engine.chooseCharacter();
           return;
         }
@@ -59,6 +69,7 @@
         if (gs.state === STATE.CHOOSE_CHARACTER) {
           var charResult = renderer.handleCharacterKey(e.key);
           if (charResult !== null) {
+            if (LiarsGarden.Sound) LiarsGarden.Sound.uiClick();
             engine.selectCharacter(charResult);
           } else {
             renderer.render(engine.getState());
@@ -66,10 +77,23 @@
           return;
         }
 
-        // Choose lives screen: handle number input
+        // Choose mode screen
+        if (gs.state === STATE.CHOOSE_MODE) {
+          var modeResult = renderer.handleModeKey(e.key);
+          if (modeResult) {
+            if (LiarsGarden.Sound) LiarsGarden.Sound.uiClick();
+            engine.chooseMode(modeResult);
+          } else {
+            renderer.render(engine.getState());
+          }
+          return;
+        }
+
+        // Choose difficulty screen
         if (gs.state === STATE.CHOOSE_LIVES) {
           var result = renderer.handleLivesKey(e.key);
           if (result !== null) {
+            if (LiarsGarden.Sound) LiarsGarden.Sound.uiClick();
             engine.startGame(result);
           } else {
             renderer.render(engine.getState());
@@ -101,6 +125,7 @@
 
       // Mouse click — for start button and game over/win
       canvas.addEventListener('click', function(e) {
+        resumeAudio();
         var gs = engine.getState();
         var rect = canvas.getBoundingClientRect();
         var mx = e.clientX - rect.left;
@@ -110,6 +135,7 @@
           var btn = LiarsGarden.createRenderer._titleBtn;
           if (btn) {
             if (mx >= btn.x && mx <= btn.x + btn.w && my >= btn.y && my <= btn.y + btn.h) {
+              if (LiarsGarden.Sound) LiarsGarden.Sound.uiClick();
               engine.chooseCharacter();
             }
           }
@@ -118,13 +144,23 @@
         if (gs.state === STATE.CHOOSE_CHARACTER) {
           var charIdx = renderer.handleCharacterClick(mx, my);
           if (charIdx !== null) {
+            if (LiarsGarden.Sound) LiarsGarden.Sound.uiClick();
             engine.selectCharacter(charIdx);
+          }
+          return;
+        }
+        if (gs.state === STATE.CHOOSE_MODE) {
+          var modeResult = renderer.handleModeClick(mx, my);
+          if (modeResult) {
+            if (LiarsGarden.Sound) LiarsGarden.Sound.uiClick();
+            engine.chooseMode(modeResult);
           }
           return;
         }
         if (gs.state === STATE.CHOOSE_LIVES) {
           var livesResult = renderer.handleLivesClick(mx, my);
           if (livesResult !== null && livesResult > 0) {
+            if (LiarsGarden.Sound) LiarsGarden.Sound.uiClick();
             engine.startGame(livesResult);
           } else {
             renderer.render(engine.getState());
@@ -132,6 +168,11 @@
           return;
         }
         if (gs.state === STATE.GAME_OVER || gs.state === STATE.WIN) {
+          // Check share button first
+          if (renderer.handleShareClick(mx, my, gs)) {
+            renderer.render(gs);
+            return;
+          }
           engine.restartGame();
           return;
         }
@@ -140,8 +181,9 @@
       // Touch
       var touchStartX = 0, touchStartY = 0;
       canvas.addEventListener('touchstart', function(e) {
+        resumeAudio();
         var gs = engine.getState();
-        if (gs.state === STATE.TITLE || gs.state === STATE.CHOOSE_CHARACTER || gs.state === STATE.CHOOSE_LIVES || gs.state === STATE.GAME_OVER || gs.state === STATE.WIN) {
+        if (gs.state === STATE.TITLE || gs.state === STATE.CHOOSE_CHARACTER || gs.state === STATE.CHOOSE_MODE || gs.state === STATE.CHOOSE_LIVES || gs.state === STATE.GAME_OVER || gs.state === STATE.WIN) {
           // Handled by click
           return;
         }
@@ -152,7 +194,7 @@
 
       canvas.addEventListener('touchend', function(e) {
         var gs = engine.getState();
-        if (gs.state === STATE.TITLE || gs.state === STATE.CHOOSE_CHARACTER || gs.state === STATE.CHOOSE_LIVES || gs.state === STATE.GAME_OVER || gs.state === STATE.WIN) return;
+        if (gs.state === STATE.TITLE || gs.state === STATE.CHOOSE_CHARACTER || gs.state === STATE.CHOOSE_MODE || gs.state === STATE.CHOOSE_LIVES || gs.state === STATE.GAME_OVER || gs.state === STATE.WIN) return;
         var t = e.changedTouches[0];
         var dx = t.clientX - touchStartX;
         var dy = t.clientY - touchStartY;

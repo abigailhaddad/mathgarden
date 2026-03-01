@@ -95,9 +95,15 @@
         return;
       }
 
-      // Choose lives screen
+      // Choose mode screen
+      if (gs.state === STATE.CHOOSE_MODE) {
+        drawChooseMode(gs, rect.width, rect.height);
+        return;
+      }
+
+      // Choose difficulty screen
       if (gs.state === STATE.CHOOSE_LIVES) {
-        drawChooseLives(rect.width, rect.height);
+        drawChooseDifficulty(rect.width, rect.height);
         return;
       }
 
@@ -496,8 +502,20 @@
       if (!gs.levelData) return;
       if (gs.state === STATE.DYING || gs.state === STATE.GAME_OVER || gs.state === STATE.WIN) return;
 
-      var x = gridOffsetX + gs.playerCol * tileSize + tileSize / 2;
-      var y = gridOffsetY + gs.playerRow * tileSize + tileSize / 2;
+      var drawCol = gs.playerCol;
+      var drawRow = gs.playerRow;
+
+      if (gs.animating) {
+        var elapsed = Date.now() - gs.animStart;
+        var t = Math.min(1, elapsed / gs.animDuration);
+        // Ease out quad
+        t = t * (2 - t);
+        drawRow = gs.animFromRow + (gs.animToRow - gs.animFromRow) * t;
+        drawCol = gs.animFromCol + (gs.animToCol - gs.animFromCol) * t;
+      }
+
+      var x = gridOffsetX + drawCol * tileSize + tileSize / 2;
+      var y = gridOffsetY + drawRow * tileSize + tileSize / 2;
       var r = tileSize * 0.4;
 
       // Bright glow under player
@@ -516,17 +534,197 @@
       ctx.fillText(emoji, x, y);
     }
 
-    var MIN_LIVES = 1;
-    var MAX_LIVES = 25;
-    var livesCount = 5;
-    var livesButtons = {};
+    // --- Mode selection screen ---
+    var modeButtons = [];
 
-    function drawChooseLives(w, h) {
+    function drawChooseMode(gs, w, h) {
       drawVignette(w, h);
-
       var time = Date.now() * 0.001;
 
-      // Floating numbers background
+      drawFloatingNumbers(w, h, time);
+
+      // Heading
+      ctx.fillStyle = C.numberText;
+      ctx.shadowColor = '#4a8a3a';
+      ctx.shadowBlur = 15;
+      ctx.font = 'bold 24px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('CHOOSE MODE', w / 2, h * 0.22);
+      ctx.shadowBlur = 0;
+
+      var btnW = 220, btnH = 60, gap = 20;
+      var startY = h / 2 - (btnH + gap / 2);
+      modeButtons = [];
+
+      // Campaign button
+      var campPulse = 0.6 + 0.15 * Math.sin(time * 2.5);
+      drawMenuButton(w / 2 - btnW / 2, startY, btnW, btnH, 'CAMPAIGN', '8 levels, random rules', campPulse, time);
+      modeButtons.push({ x: w / 2 - btnW / 2, y: startY, w: btnW, h: btnH, mode: 'campaign' });
+
+      // Daily button
+      var dailyPlayed = window.LiarsGarden.Daily && window.LiarsGarden.Daily.hasPlayedToday();
+      var dailyLabel = dailyPlayed ? 'DAILY (DONE)' : 'DAILY PUZZLE';
+      var dailyDesc = window.LiarsGarden.Daily ? window.LiarsGarden.Daily.todayKey() : '';
+      var dailyPulse = 0.6 + 0.15 * Math.sin(time * 2.5 + 1);
+      drawMenuButton(w / 2 - btnW / 2, startY + btnH + gap, btnW, btnH, dailyLabel, 'Same puzzle for everyone \u00b7 ' + dailyDesc, dailyPulse, time);
+      modeButtons.push({ x: w / 2 - btnW / 2, y: startY + btnH + gap, w: btnW, h: btnH, mode: 'daily' });
+
+      // High scores summary
+      var scores = window.LiarsGarden.Scores ? window.LiarsGarden.Scores.getScores() : null;
+      if (scores && scores.gamesPlayed > 0) {
+        var statsY = startY + (btnH + gap) * 2 + 20;
+        ctx.fillStyle = C.hudTextDim;
+        ctx.font = '11px monospace';
+        ctx.globalAlpha = 0.6;
+        var bestText = 'Best: ' + scores.bestScore;
+        if (scores.fewestDeathsWin !== null) bestText += '  |  Fewest deaths (win): ' + scores.fewestDeathsWin;
+        ctx.fillText(bestText, w / 2, statsY);
+        ctx.fillText('Games: ' + scores.gamesPlayed + '  |  Wins: ' + scores.gamesWon, w / 2, statsY + 16);
+        ctx.globalAlpha = 1;
+      }
+
+      createRenderer._modeButtons = modeButtons;
+    }
+
+    function drawMenuButton(x, y, w, h, label, desc, pulse, time) {
+      ctx.shadowColor = '#4a8a3a';
+      ctx.shadowBlur = 8;
+      ctx.strokeStyle = 'rgba(140, 180, 120, ' + pulse + ')';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(x, y, w, h);
+      ctx.shadowBlur = 0;
+
+      ctx.fillStyle = 'rgba(20, 30, 15, 0.8)';
+      ctx.fillRect(x, y, w, h);
+
+      ctx.fillStyle = '#b0d0a0';
+      ctx.font = 'bold 16px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(label, x + w / 2, y + h / 2 - 8);
+
+      ctx.fillStyle = C.hintText;
+      ctx.font = '10px monospace';
+      ctx.globalAlpha = 0.6;
+      ctx.fillText(desc, x + w / 2, y + h / 2 + 12);
+      ctx.globalAlpha = 1;
+    }
+
+    function handleModeKey(key) {
+      if (key === '1' || key === 'c' || key === 'C') return 'campaign';
+      if (key === '2' || key === 'd' || key === 'D') return 'daily';
+      if (key === 'ArrowUp' || key === 'ArrowDown') return null; // just re-render
+      if (key === 'Enter' || key === ' ') return 'campaign'; // default
+      return null;
+    }
+
+    function handleModeClick(mx, my) {
+      for (var i = 0; i < modeButtons.length; i++) {
+        var b = modeButtons[i];
+        if (mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) {
+          return b.mode;
+        }
+      }
+      return null;
+    }
+
+    // --- Difficulty selection screen (Easy / Medium / Hard) ---
+    var diffButtons = [];
+    var selectedDiffIndex = 1; // default Medium
+
+    function drawChooseDifficulty(w, h) {
+      drawVignette(w, h);
+      var time = Date.now() * 0.001;
+      var DIFFS = window.LiarsGarden.DIFFICULTIES;
+
+      drawFloatingNumbers(w, h, time);
+
+      // Heading
+      ctx.fillStyle = C.numberText;
+      ctx.shadowColor = '#4a8a3a';
+      ctx.shadowBlur = 15;
+      ctx.font = 'bold 24px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('CHOOSE DIFFICULTY', w / 2, h * 0.25);
+      ctx.shadowBlur = 0;
+
+      var btnW = 180, btnH = 56, gap = 16;
+      var totalH = DIFFS.length * btnH + (DIFFS.length - 1) * gap;
+      var startY = h / 2 - totalH / 2;
+      diffButtons = [];
+
+      for (var i = 0; i < DIFFS.length; i++) {
+        var bx = w / 2 - btnW / 2;
+        var by = startY + i * (btnH + gap);
+        var isSelected = i === selectedDiffIndex;
+        var pulse = isSelected ? (0.7 + 0.2 * Math.sin(time * 3)) : 0.4;
+
+        ctx.shadowColor = isSelected ? '#4a8a3a' : 'transparent';
+        ctx.shadowBlur = isSelected ? 10 : 0;
+        ctx.strokeStyle = isSelected ? 'rgba(140, 180, 120, ' + pulse + ')' : 'rgba(80, 100, 70, 0.3)';
+        ctx.lineWidth = isSelected ? 2 : 1;
+        ctx.strokeRect(bx, by, btnW, btnH);
+        ctx.shadowBlur = 0;
+
+        ctx.fillStyle = isSelected ? 'rgba(20, 35, 15, 0.9)' : 'rgba(15, 20, 10, 0.6)';
+        ctx.fillRect(bx, by, btnW, btnH);
+
+        ctx.fillStyle = isSelected ? '#b0d0a0' : '#6a7a5a';
+        ctx.font = 'bold 18px monospace';
+        ctx.fillText(DIFFS[i].label, bx + btnW / 2, by + btnH / 2 - 8);
+
+        ctx.fillStyle = isSelected ? C.hudText : C.hudTextDim;
+        ctx.font = '12px monospace';
+        ctx.fillText(DIFFS[i].description, bx + btnW / 2, by + btnH / 2 + 12);
+
+        diffButtons.push({ x: bx, y: by, w: btnW, h: btnH, lives: DIFFS[i].lives, index: i });
+      }
+
+      // Multiplier hint
+      var mult = (10 / DIFFS[selectedDiffIndex].lives).toFixed(1).replace(/\.0$/, '');
+      ctx.fillStyle = C.hintText;
+      ctx.font = '11px monospace';
+      ctx.globalAlpha = 0.5;
+      ctx.fillText('Score multiplier: ' + mult + 'x', w / 2, startY + totalH + 25);
+      ctx.globalAlpha = 1;
+
+      createRenderer._diffButtons = diffButtons;
+    }
+
+    function handleLivesKey(key) {
+      var DIFFS = window.LiarsGarden.DIFFICULTIES;
+      if (key === 'ArrowUp' || key === 'w' || key === 'W') {
+        selectedDiffIndex = Math.max(0, selectedDiffIndex - 1);
+        return null;
+      }
+      if (key === 'ArrowDown' || key === 's' || key === 'S') {
+        selectedDiffIndex = Math.min(DIFFS.length - 1, selectedDiffIndex + 1);
+        return null;
+      }
+      if (key === '1') { selectedDiffIndex = 0; return DIFFS[0].lives; }
+      if (key === '2') { selectedDiffIndex = 1; return DIFFS[1].lives; }
+      if (key === '3') { selectedDiffIndex = 2; return DIFFS[2].lives; }
+      if (key === 'Enter' || key === ' ') {
+        return DIFFS[selectedDiffIndex].lives;
+      }
+      return null;
+    }
+
+    function handleLivesClick(mx, my) {
+      for (var i = 0; i < diffButtons.length; i++) {
+        var b = diffButtons[i];
+        if (mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) {
+          selectedDiffIndex = b.index;
+          return b.lives;
+        }
+      }
+      return -1;
+    }
+
+    // --- Shared floating numbers background ---
+    function drawFloatingNumbers(w, h, time) {
       ctx.font = '14px monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
@@ -540,131 +738,6 @@
         ctx.fillText(String(num), nx, ny);
       }
       ctx.globalAlpha = 1;
-
-      // Heading
-      ctx.fillStyle = C.numberText;
-      ctx.shadowColor = '#4a8a3a';
-      ctx.shadowBlur = 15;
-      ctx.font = 'bold 24px monospace';
-      ctx.fillText('HOW MANY LIVES?', w / 2, h / 2 - 80);
-      ctx.shadowBlur = 0;
-
-      // Subtext
-      ctx.fillStyle = '#a0b090';
-      ctx.font = '13px monospace';
-      ctx.globalAlpha = 0.7;
-      ctx.fillText('Fewer lives = higher score', w / 2, h / 2 - 50);
-      ctx.globalAlpha = 1;
-
-      // Stepper: [ - ]  NUMBER  [ + ]
-      var centerY = h / 2 - 5;
-      var btnSize = 50;
-      var numBoxW = 80;
-      var totalW = btnSize + 16 + numBoxW + 16 + btnSize;
-      var startX = w / 2 - totalW / 2;
-
-      // Minus button
-      var minusX = startX;
-      var btnPulse = 0.5 + 0.1 * Math.sin(time * 2);
-      ctx.strokeStyle = livesCount > MIN_LIVES ? 'rgba(140, 180, 120, ' + btnPulse + ')' : 'rgba(60, 70, 50, 0.3)';
-      ctx.lineWidth = 1.5;
-      ctx.strokeRect(minusX, centerY, btnSize, btnSize);
-      ctx.fillStyle = 'rgba(20, 30, 15, 0.8)';
-      ctx.fillRect(minusX, centerY, btnSize, btnSize);
-      ctx.fillStyle = livesCount > MIN_LIVES ? '#b0d0a0' : '#3a4a2a';
-      ctx.font = 'bold 28px monospace';
-      ctx.fillText('-', minusX + btnSize / 2, centerY + btnSize / 2);
-
-      // Number display
-      var numX = minusX + btnSize + 16;
-      ctx.strokeStyle = 'rgba(140, 180, 120, 0.6)';
-      ctx.strokeRect(numX, centerY, numBoxW, btnSize);
-      ctx.fillStyle = 'rgba(20, 30, 15, 0.8)';
-      ctx.fillRect(numX, centerY, numBoxW, btnSize);
-      ctx.fillStyle = C.numberText;
-      ctx.font = 'bold 28px monospace';
-      ctx.fillText(String(livesCount), numX + numBoxW / 2, centerY + btnSize / 2);
-
-      // Plus button
-      var plusX = numX + numBoxW + 16;
-      ctx.strokeStyle = livesCount < MAX_LIVES ? 'rgba(140, 180, 120, ' + btnPulse + ')' : 'rgba(60, 70, 50, 0.3)';
-      ctx.lineWidth = 1.5;
-      ctx.strokeRect(plusX, centerY, btnSize, btnSize);
-      ctx.fillStyle = 'rgba(20, 30, 15, 0.8)';
-      ctx.fillRect(plusX, centerY, btnSize, btnSize);
-      ctx.fillStyle = livesCount < MAX_LIVES ? '#b0d0a0' : '#3a4a2a';
-      ctx.font = 'bold 28px monospace';
-      ctx.fillText('+', plusX + btnSize / 2, centerY + btnSize / 2);
-
-      // GO button
-      var goW = 140, goH = 44;
-      var goX = w / 2 - goW / 2;
-      var goY = centerY + btnSize + 30;
-      var goPulse = 0.6 + 0.15 * Math.sin(time * 2.5);
-      ctx.shadowColor = '#4a8a3a';
-      ctx.shadowBlur = 10;
-      ctx.strokeStyle = 'rgba(140, 180, 120, ' + goPulse + ')';
-      ctx.lineWidth = 1.5;
-      ctx.strokeRect(goX, goY, goW, goH);
-      ctx.shadowBlur = 0;
-      ctx.fillStyle = 'rgba(20, 30, 15, 0.8)';
-      ctx.fillRect(goX, goY, goW, goH);
-      ctx.fillStyle = '#b0d0a0';
-      ctx.font = 'bold 16px monospace';
-      ctx.globalAlpha = 0.8 + 0.15 * Math.sin(time * 3);
-      ctx.fillText('[ GO ]', w / 2, goY + goH / 2);
-      ctx.globalAlpha = 1;
-
-      // Multiplier hint
-      var mult = (10 / livesCount).toFixed(1).replace(/\.0$/, '');
-      ctx.fillStyle = C.hintText;
-      ctx.font = '11px monospace';
-      ctx.globalAlpha = 0.5;
-      ctx.fillText('Score multiplier: ' + mult + 'x', w / 2, goY + goH + 25);
-      ctx.globalAlpha = 1;
-
-      // Store button bounds
-      livesButtons = {
-        minus: { x: minusX, y: centerY, w: btnSize, h: btnSize },
-        plus: { x: plusX, y: centerY, w: btnSize, h: btnSize },
-        go: { x: goX, y: goY, w: goW, h: goH },
-      };
-      createRenderer._livesButtons = livesButtons;
-    }
-
-    function handleLivesKey(key) {
-      if (key === 'ArrowLeft' || key === 'ArrowDown' || key === 'a' || key === 'A') {
-        if (livesCount > MIN_LIVES) livesCount--;
-        return null;
-      }
-      if (key === 'ArrowRight' || key === 'ArrowUp' || key === 'd' || key === 'D') {
-        if (livesCount < MAX_LIVES) livesCount++;
-        return null;
-      }
-      if (key === 'Enter' || key === ' ') {
-        var result = livesCount;
-        livesCount = 5;
-        return result;
-      }
-      return null;
-    }
-
-    function handleLivesClick(mx, my) {
-      var b = livesButtons;
-      if (b.minus && mx >= b.minus.x && mx <= b.minus.x + b.minus.w && my >= b.minus.y && my <= b.minus.y + b.minus.h) {
-        if (livesCount > MIN_LIVES) livesCount--;
-        return null;
-      }
-      if (b.plus && mx >= b.plus.x && mx <= b.plus.x + b.plus.w && my >= b.plus.y && my <= b.plus.y + b.plus.h) {
-        if (livesCount < MAX_LIVES) livesCount++;
-        return null;
-      }
-      if (b.go && mx >= b.go.x && mx <= b.go.x + b.go.w && my >= b.go.y && my <= b.go.y + b.go.h) {
-        var result = livesCount;
-        livesCount = 5;
-        return result;
-      }
-      return -1; // no button hit
     }
 
     function drawDeathOverlay(gs, w, h) {
@@ -702,6 +775,10 @@
       ctx.fillText(gs.levelData.ruleText, w / 2, h / 2 + 10);
     }
 
+    var shareBtn = null;
+    var shareCopied = false;
+    var shareCopiedTime = 0;
+
     function drawGameOver(gs, w, h) {
       ctx.fillStyle = 'rgba(10, 0, 0, 0.9)';
       ctx.fillRect(0, 0, w, h);
@@ -714,23 +791,39 @@
       ctx.font = 'bold 36px monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('GAME OVER', w / 2, h / 2 - 40);
+      ctx.fillText('GAME OVER', w / 2, h / 2 - 60);
       ctx.shadowBlur = 0;
       ctx.globalAlpha = 1;
 
       // Score
       ctx.fillStyle = C.ruleText;
       ctx.font = 'bold 18px monospace';
-      ctx.fillText('Score: ' + gs.score, w / 2, h / 2 + 5);
+      ctx.fillText('Score: ' + gs.score, w / 2, h / 2 - 20);
 
       ctx.fillStyle = C.hudTextDim;
       ctx.font = '12px monospace';
       var mult = (10 / gs.chosenLives).toFixed(1).replace(/\.0$/, '');
-      ctx.fillText(gs.currentLevel + ' levels \u00d7 ' + mult + 'x  |  ' + gs.deaths + ' death' + (gs.deaths !== 1 ? 's' : ''), w / 2, h / 2 + 30);
+      ctx.fillText(gs.currentLevel + ' levels \u00d7 ' + mult + 'x  |  ' + gs.deaths + ' death' + (gs.deaths !== 1 ? 's' : ''), w / 2, h / 2 + 5);
+
+      // High score
+      var scores = window.LiarsGarden.Scores ? window.LiarsGarden.Scores.getScores() : null;
+      if (scores && scores.bestScore > 0) {
+        ctx.fillStyle = C.hudTextDim;
+        ctx.font = '11px monospace';
+        ctx.fillText('Best score: ' + scores.bestScore, w / 2, h / 2 + 25);
+      }
+
+      var bottomY = h / 2 + 45;
+
+      // Share button for daily mode
+      if (gs.gameMode === 'daily') {
+        drawShareButton(gs, w, bottomY);
+        bottomY += 50;
+      }
 
       ctx.fillStyle = C.hudTextDim;
       ctx.font = '14px monospace';
-      ctx.fillText('Press R or tap to restart', w / 2, h / 2 + 60);
+      ctx.fillText('Press R or tap to restart', w / 2, bottomY);
     }
 
     function drawWin(gs, w, h) {
@@ -743,7 +836,7 @@
       ctx.font = 'bold 24px monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('Q.E.D.', w / 2, h / 2 - 50);
+      ctx.fillText('Q.E.D.', w / 2, h / 2 - 70);
       ctx.shadowBlur = 0;
 
       // Score
@@ -751,17 +844,81 @@
       ctx.shadowColor = '#4a8a3a';
       ctx.shadowBlur = 10;
       ctx.font = 'bold 22px monospace';
-      ctx.fillText('Score: ' + gs.score, w / 2, h / 2 - 10);
+      ctx.fillText('Score: ' + gs.score, w / 2, h / 2 - 30);
       ctx.shadowBlur = 0;
 
       ctx.fillStyle = C.hudTextDim;
       ctx.font = '12px monospace';
-      var mult = 6 - gs.chosenLives;
-      ctx.fillText('8 levels \u00d7 ' + mult + 'x  |  ' + gs.deaths + ' death' + (gs.deaths !== 1 ? 's' : ''), w / 2, h / 2 + 15);
+      var mult = (10 / gs.chosenLives).toFixed(1).replace(/\.0$/, '');
+      ctx.fillText('8 levels \u00d7 ' + mult + 'x  |  ' + gs.deaths + ' death' + (gs.deaths !== 1 ? 's' : ''), w / 2, h / 2 - 5);
+
+      // High score
+      var scores = window.LiarsGarden.Scores ? window.LiarsGarden.Scores.getScores() : null;
+      if (scores && scores.bestScore > 0) {
+        ctx.fillStyle = C.hudTextDim;
+        ctx.font = '11px monospace';
+        ctx.fillText('Best score: ' + scores.bestScore, w / 2, h / 2 + 15);
+      }
+
+      var bottomY = h / 2 + 35;
+
+      // Share button for daily mode
+      if (gs.gameMode === 'daily') {
+        drawShareButton(gs, w, bottomY);
+        bottomY += 50;
+      }
 
       ctx.fillStyle = C.hudTextDim;
       ctx.font = '13px monospace';
-      ctx.fillText('Press R to begin again.', w / 2, h / 2 + 45);
+      ctx.fillText('Press R to begin again.', w / 2, bottomY);
+    }
+
+    function drawShareButton(gs, w, y) {
+      var btnW = 160, btnH = 36;
+      var bx = w / 2 - btnW / 2;
+      var time = Date.now() * 0.001;
+      var pulse = 0.6 + 0.15 * Math.sin(time * 2.5);
+
+      var label = (shareCopied && Date.now() - shareCopiedTime < 2000) ? 'COPIED!' : '[ SHARE RESULT ]';
+
+      ctx.shadowColor = '#5a5a00';
+      ctx.shadowBlur = 6;
+      ctx.strokeStyle = 'rgba(138, 138, 48, ' + pulse + ')';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(bx, y, btnW, btnH);
+      ctx.shadowBlur = 0;
+
+      ctx.fillStyle = 'rgba(20, 20, 10, 0.8)';
+      ctx.fillRect(bx, y, btnW, btnH);
+
+      ctx.fillStyle = C.ruleText;
+      ctx.font = 'bold 13px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(label, w / 2, y + btnH / 2);
+
+      shareBtn = { x: bx, y: y, w: btnW, h: btnH };
+      createRenderer._shareBtn = shareBtn;
+    }
+
+    function handleShareClick(mx, my, gs) {
+      if (!shareBtn) return false;
+      if (mx >= shareBtn.x && mx <= shareBtn.x + shareBtn.w && my >= shareBtn.y && my <= shareBtn.y + shareBtn.h) {
+        if (window.LiarsGarden.Daily) {
+          var text = window.LiarsGarden.Daily.generateShareText(
+            window.LiarsGarden.Daily.todayKey(),
+            gs.deaths,
+            gs.currentLevel,
+            gs.totalLevels || 8,
+            gs.chosenLives
+          );
+          window.LiarsGarden.Daily.copyToClipboard(text);
+          shareCopied = true;
+          shareCopiedTime = Date.now();
+        }
+        return true;
+      }
+      return false;
     }
 
     return {
@@ -771,6 +928,9 @@
       handleLivesClick: handleLivesClick,
       handleCharacterKey: handleCharacterKey,
       handleCharacterClick: handleCharacterClick,
+      handleModeKey: handleModeKey,
+      handleModeClick: handleModeClick,
+      handleShareClick: handleShareClick,
     };
   }
 
